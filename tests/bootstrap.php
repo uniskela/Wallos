@@ -136,6 +136,7 @@ function wallos_test_database()
         }
         copy(WALLOS_ROOT . '/endpoints/cronjobs/createdatabase.php', $sandbox . '/endpoints/cronjobs/createdatabase.php');
         copy(WALLOS_ROOT . '/includes/run_migrations.php', $sandbox . '/includes/run_migrations.php');
+        copy(WALLOS_ROOT . '/includes/database_bootstrap.php', $sandbox . '/includes/database_bootstrap.php');
 
         $databaseFile = $sandbox . '/db/wallos.db';
 
