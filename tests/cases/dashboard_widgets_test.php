@@ -61,6 +61,7 @@ wallos_test('payment_method_budget supports multiple layout instances', function
     assert_same('pmb_bbbb2222', $pmb[1]['instance_id'], 'stable instance id 2');
     assert_same([2], $pmb[1]['payment_method_ids'], 'method ids instance 2');
     assert_true($pmb[1]['enabled'] === false, 'instance 2 disabled');
+    assert_same('per_method', $pmb[0]['display_mode'], 'default display_mode');
 
     $settings = ['dashboard_widget_layout' => json_encode($normalized)];
     assert_true(wallos_is_widget_enabled($settings, 'payment_method_budget'), 'any enabled instance => type enabled');
@@ -89,6 +90,63 @@ wallos_test('payment_method_budget supports multiple layout instances', function
     assert_same([1, 3], $catalogPmb[0]['payment_method_ids'], 'catalog includes method ids');
     assert_same('pmb_bbbb2222', $catalogPmb[1]['instance_id'], 'catalog instance id');
     assert_true($catalogPmb[1]['enabled'] === false, 'catalog enabled per instance');
+    assert_same('per_method', $catalogPmb[0]['display_mode'], 'catalog includes display_mode');
+});
+
+wallos_test('payment method budget display_mode combined persists and combines rows', function () {
+    $layout = [
+        wallos_make_payment_method_budget_instance([1, 2], 'Cards', true, 'pmb_combo1', 'combined'),
+        ['widget_id' => 'upcoming', 'enabled' => true],
+    ];
+    $normalized = wallos_normalize_dashboard_widget_layout_input($layout);
+    assert_true($normalized !== null, 'combined layout accepted');
+    $pmb = null;
+    foreach ($normalized as $entry) {
+        if (($entry['instance_id'] ?? '') === 'pmb_combo1') {
+            $pmb = $entry;
+            break;
+        }
+    }
+    assert_same('combined', $pmb['display_mode'], 'combined mode persisted');
+
+    assert_same('per_method', wallos_normalize_payment_method_budget_display_mode('nope'), 'invalid mode falls back');
+    assert_same('combined', wallos_normalize_payment_method_budget_display_mode('combined'), 'combined accepted');
+
+    $rows = [
+        [
+            'payment_method_id' => 1,
+            'name' => 'PayPal',
+            'budget' => 100,
+            'amount_needed' => 40,
+            'budget_used_percent' => 40,
+            'remaining' => 60,
+            'over_budget' => 0,
+            'icon' => '',
+            'enabled' => true,
+        ],
+        [
+            'payment_method_id' => 2,
+            'name' => 'Direct Debit',
+            'budget' => 50,
+            'amount_needed' => 70,
+            'budget_used_percent' => 100,
+            'remaining' => 0,
+            'over_budget' => 20,
+            'icon' => '',
+            'enabled' => true,
+        ],
+    ];
+    $combined = wallos_combine_payment_method_budget_rows($rows, 'Cards');
+    assert_same(1, count($combined), 'one combined row');
+    assert_true(!empty($combined[0]['combined']), 'combined flag');
+    assert_same('Cards', $combined[0]['name'], 'uses label');
+    assert_equals(150.0, $combined[0]['budget'], 'budgets summed');
+    assert_equals(110.0, $combined[0]['amount_needed'], 'amounts summed');
+    assert_equals(40.0, $combined[0]['remaining'], 'remaining from totals');
+    assert_equals(0.0, $combined[0]['over_budget'], 'over from totals');
+    assert_same([1, 2], $combined[0]['payment_method_ids'], 'keeps source ids');
+
+    assert_same(1, count(wallos_combine_payment_method_budget_rows([$rows[0]])), 'single row unchanged count');
 });
 
 wallos_test('duplicate payment_method_budget instance_ids are rejected', function () {

@@ -28,6 +28,10 @@ $widgetHasContent = [
      data-label-widget-title="<?= htmlspecialchars(translate('widget_title', $i18n), ENT_QUOTES, 'UTF-8') ?>"
      data-label-select-methods="<?= htmlspecialchars(translate('select_payment_methods', $i18n), ENT_QUOTES, 'UTF-8') ?>"
      data-label-select-info="<?= htmlspecialchars(translate('payment_method_budget_select_info', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-display-mode="<?= htmlspecialchars(translate('payment_method_budget_display_mode', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-display-per-method="<?= htmlspecialchars(translate('payment_method_budget_display_per_method', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-display-combined="<?= htmlspecialchars(translate('payment_method_budget_display_combined', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-display-info="<?= htmlspecialchars(translate('payment_method_budget_display_info', $i18n), ENT_QUOTES, 'UTF-8') ?>"
      data-label-save="<?= htmlspecialchars(translate('save', $i18n), ENT_QUOTES, 'UTF-8') ?>"
      data-label-empty="<?= htmlspecialchars(translate('widget_no_data', $i18n), ENT_QUOTES, 'UTF-8') ?>"
      data-label-show="<?= htmlspecialchars(translate('show_widget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
@@ -50,6 +54,7 @@ foreach ($dashboardWidgetLayout as $entry) {
     $instanceId = $entry['instance_id'] ?? '';
     $configuredMethodIds = array_values($entry['payment_method_ids'] ?? []);
     $customTitle = isset($entry['title']) && is_string($entry['title']) ? trim($entry['title']) : '';
+    $displayMode = wallos_normalize_payment_method_budget_display_mode($entry['display_mode'] ?? 'per_method');
     $titleKey = wallos_widget_title_key($widgetId);
     $defaultTitle = translate($titleKey, $i18n);
     $title = $customTitle !== '' ? $customTitle : $defaultTitle;
@@ -68,6 +73,12 @@ foreach ($dashboardWidgetLayout as $entry) {
             $filterIds !== null, // keep explicitly selected methods even if disabled later
             $filterIds === null
         );
+        if ($displayMode === 'combined') {
+            $combinedLabel = $customTitle !== ''
+                ? $customTitle
+                : implode(', ', array_column($instanceRows, 'name'));
+            $instanceRows = wallos_combine_payment_method_budget_rows($instanceRows, $combinedLabel);
+        }
         $hasContent = !empty($instanceRows);
     } else {
         $hasContent = !empty($widgetHasContent[$widgetId]);
@@ -81,6 +92,7 @@ foreach ($dashboardWidgetLayout as $entry) {
          data-instance-id="<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>"
          data-payment-method-ids="<?= htmlspecialchars(json_encode($configuredMethodIds), ENT_QUOTES, 'UTF-8') ?>"
          data-title="<?= htmlspecialchars($customTitle, ENT_QUOTES, 'UTF-8') ?>"
+         data-display-mode="<?= htmlspecialchars($displayMode, ENT_QUOTES, 'UTF-8') ?>"
          <?php } ?>>
         <div class="dashboard-widget-chrome">
             <div class="drag-icon" title="<?= translate('reorder_widget', $i18n) ?>">
@@ -113,6 +125,34 @@ foreach ($dashboardWidgetLayout as $entry) {
                 <input type="text" class="pmb-title-input thin" maxlength="80"
                        value="<?= htmlspecialchars($customTitle, ENT_QUOTES, 'UTF-8') ?>"
                        placeholder="<?= htmlspecialchars($defaultTitle, ENT_QUOTES, 'UTF-8') ?>">
+            </div>
+            <div class="form-group">
+                <label><?= translate('payment_method_budget_display_mode', $i18n) ?></label>
+                <div class="pmb-display-mode">
+                    <div class="form-group-inline">
+                        <input type="radio"
+                               class="pmb-display-mode-input"
+                               name="pmb_display_<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>"
+                               id="pmb_display_per_<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>"
+                               value="per_method"
+                               <?= $displayMode === 'per_method' ? 'checked' : '' ?>>
+                        <label for="pmb_display_per_<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>">
+                            <?= translate('payment_method_budget_display_per_method', $i18n) ?>
+                        </label>
+                    </div>
+                    <div class="form-group-inline">
+                        <input type="radio"
+                               class="pmb-display-mode-input"
+                               name="pmb_display_<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>"
+                               id="pmb_display_combined_<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>"
+                               value="combined"
+                               <?= $displayMode === 'combined' ? 'checked' : '' ?>>
+                        <label for="pmb_display_combined_<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>">
+                            <?= translate('payment_method_budget_display_combined', $i18n) ?>
+                        </label>
+                    </div>
+                </div>
+                <p class="settings-notes"><i class="fa-solid fa-circle-info"></i> <?= translate('payment_method_budget_display_info', $i18n) ?></p>
             </div>
             <div class="form-group">
                 <label><?= translate('select_payment_methods', $i18n) ?></label>
@@ -417,8 +457,12 @@ foreach ($dashboardWidgetLayout as $entry) {
                             <?php if (isset($budgetPeriodLabel)) { ?>
                                 <p class="header-subtitle"><?= translate('current_period', $i18n) ?>: <?= htmlspecialchars($budgetPeriodLabel, ENT_QUOTES, 'UTF-8') ?></p>
                             <?php } ?>
-                            <?php foreach ($instanceRows as $methodBudget) { ?>
-                                <h3 class="payment-method-budget-name"><?= htmlspecialchars($methodBudget['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                            <?php foreach ($instanceRows as $methodBudget) {
+                                $showMethodHeading = empty($methodBudget['combined'])
+                                    || $customTitle === '';
+                                if ($showMethodHeading) { ?>
+                                    <h3 class="payment-method-budget-name"><?= htmlspecialchars($methodBudget['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                <?php } ?>
                                 <div class="dashboard-subscriptions-container">
                                     <div class="dashboard-subscriptions-list">
                                         <div class="subscription-item thin">

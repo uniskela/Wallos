@@ -337,6 +337,9 @@ switch ($widgetId) {
             $response['instance_id'] = $instanceId;
             $response['enabled'] = !empty($instance['enabled']);
             $response['payment_method_ids'] = array_values($instance['payment_method_ids'] ?? []);
+            $response['display_mode'] = wallos_normalize_payment_method_budget_display_mode(
+                $instance['display_mode'] ?? 'per_method'
+            );
             if ($instanceTitle !== null) {
                 $response['title'] = $instanceTitle;
             }
@@ -359,6 +362,18 @@ switch ($widgetId) {
             $includeDisabledForRows,
             $onlyWithBudget
         );
+
+        $displayMode = wallos_normalize_payment_method_budget_display_mode(
+            $response['display_mode'] ?? 'per_method'
+        );
+        if ($instanceId === null) {
+            $response['display_mode'] = $displayMode;
+        }
+        if ($displayMode === 'combined') {
+            $response['methods_breakdown'] = $methods;
+            $combinedLabel = $instanceTitle ?? implode(', ', array_column($methods, 'name'));
+            $methods = wallos_combine_payment_method_budget_rows($methods, $combinedLabel);
+        }
 
         $response['period'] = [
             'type' => $periodType,

@@ -57,9 +57,15 @@ if (!function_exists('wallos_make_payment_method_budget_instance')) {
     /**
      * @param int[] $paymentMethodIds empty = all methods that have a budget
      * @param string|null $instanceId null = generate; use 'pmb_default' for the migrated singleton
+     * @param string $displayMode 'per_method' (default) or 'combined'
      */
-    function wallos_make_payment_method_budget_instance(array $paymentMethodIds = [], $title = '', $enabled = true, $instanceId = null)
-    {
+    function wallos_make_payment_method_budget_instance(
+        array $paymentMethodIds = [],
+        $title = '',
+        $enabled = true,
+        $instanceId = null,
+        $displayMode = 'per_method'
+    ) {
         if (!is_string($instanceId) || $instanceId === '') {
             try {
                 $instanceId = 'pmb_' . bin2hex(random_bytes(4));
@@ -76,13 +82,31 @@ if (!function_exists('wallos_make_payment_method_budget_instance')) {
             }
         }
 
+        $mode = wallos_normalize_payment_method_budget_display_mode($displayMode);
+
         return [
             'widget_id' => 'payment_method_budget',
             'instance_id' => $instanceId,
             'enabled' => (bool) $enabled,
             'payment_method_ids' => array_values(array_unique($ids)),
             'title' => is_string($title) ? trim($title) : '',
+            'display_mode' => $mode,
         ];
+    }
+}
+
+if (!function_exists('wallos_normalize_payment_method_budget_display_mode')) {
+    /**
+     * @param mixed $mode
+     * @return string 'per_method'|'combined'
+     */
+    function wallos_normalize_payment_method_budget_display_mode($mode)
+    {
+        if ($mode === 'combined') {
+            return 'combined';
+        }
+
+        return 'per_method';
     }
 }
 
@@ -148,7 +172,14 @@ if (!function_exists('wallos_normalize_dashboard_widget_layout_input')) {
                         $title = substr($title, 0, 80);
                     }
                 }
-                $instance = wallos_make_payment_method_budget_instance($methodIds, $title, $enabledBool, $instanceId);
+                $displayMode = wallos_normalize_payment_method_budget_display_mode($entry['display_mode'] ?? 'per_method');
+                $instance = wallos_make_payment_method_budget_instance(
+                    $methodIds,
+                    $title,
+                    $enabledBool,
+                    $instanceId,
+                    $displayMode
+                );
                 $seenInstanceIds[$instance['instance_id']] = true;
                 $hasPaymentMethodBudget = true;
                 $normalized[] = $instance;
@@ -418,6 +449,59 @@ if (!function_exists('wallos_build_payment_method_budget_rows')) {
     }
 }
 
+if (!function_exists('wallos_combine_payment_method_budget_rows')) {
+    /**
+     * Collapse per-method rows into one bundled totals row.
+     *
+     * @param array $rows from wallos_build_payment_method_budget_rows
+     * @param string $label display name for the combined row
+     * @return array
+     */
+    function wallos_combine_payment_method_budget_rows(array $rows, $label = '')
+    {
+        if (count($rows) <= 1) {
+            return $rows;
+        }
+
+        $budget = 0.0;
+        $amountNeeded = 0.0;
+        $ids = [];
+        $names = [];
+        foreach ($rows as $row) {
+            $budget += (float) ($row['budget'] ?? 0);
+            $amountNeeded += (float) ($row['amount_needed'] ?? 0);
+            if (isset($row['payment_method_id'])) {
+                $ids[] = (int) $row['payment_method_id'];
+            }
+            if (!empty($row['name'])) {
+                $names[] = $row['name'];
+            }
+        }
+
+        $remaining = max(0, $budget - $amountNeeded);
+        $overBudget = max(0, $amountNeeded - $budget);
+        $usedPercent = $budget > 0 ? min(100, ($amountNeeded / $budget) * 100) : 0;
+        $combinedLabel = is_string($label) ? trim($label) : '';
+        if ($combinedLabel === '') {
+            $combinedLabel = implode(', ', $names);
+        }
+
+        return [[
+            'payment_method_id' => null,
+            'payment_method_ids' => $ids,
+            'name' => $combinedLabel,
+            'icon' => '',
+            'enabled' => true,
+            'combined' => true,
+            'budget' => round($budget, 2),
+            'amount_needed' => round($amountNeeded, 2),
+            'budget_used_percent' => round($usedPercent, 2),
+            'remaining' => round($remaining, 2),
+            'over_budget' => round($overBudget, 2),
+        ]];
+    }
+}
+
 if (!function_exists('wallos_subscription_monthly_cost')) {
     /**
      * Amortized monthly cost in the user's main currency (same cycle math as stats).
@@ -514,6 +598,9 @@ if (!function_exists('wallos_list_widgets_catalog')) {
             if ($widgetId === 'payment_method_budget') {
                 $item['instance_id'] = $entry['instance_id'] ?? null;
                 $item['payment_method_ids'] = array_values($entry['payment_method_ids'] ?? []);
+                $item['display_mode'] = wallos_normalize_payment_method_budget_display_mode(
+                    $entry['display_mode'] ?? 'per_method'
+                );
                 $item['default_title'] = $defaultTitle;
             }
 

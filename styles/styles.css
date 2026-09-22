@@ -1395,6 +1395,17 @@ header #avatar {
   margin-bottom: 10px;
 }
 
+.pmb-display-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.pmb-display-mode .form-group-inline {
+  margin-bottom: 0;
+}
+
 .pmb-method-checks {
   display: flex;
   flex-direction: column;

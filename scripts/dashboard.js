@@ -100,6 +100,7 @@ function initDashboardWidgetEditor() {
         entry.instance_id = el.getAttribute("data-instance-id") || newInstanceId();
         entry.payment_method_ids = parseJsonAttr(el, "data-payment-method-ids", []);
         entry.title = el.getAttribute("data-title") || "";
+        entry.display_mode = el.getAttribute("data-display-mode") === "combined" ? "combined" : "per_method";
       }
       return entry;
     });
@@ -167,6 +168,7 @@ function initDashboardWidgetEditor() {
     widget.setAttribute("data-instance-id", instanceId);
     widget.setAttribute("data-payment-method-ids", "[]");
     widget.setAttribute("data-title", "");
+    widget.setAttribute("data-display-mode", "per_method");
 
     const methodChecks = methods.map(function (method) {
       const inputId = "pmb_" + instanceId + "_" + method.id;
@@ -175,6 +177,10 @@ function initDashboardWidgetEditor() {
         + '<label for="' + escapeAttr(inputId) + '">' + escapeHtml(method.name) + '</label>'
         + '</div>';
     }).join("");
+
+    const displayPerId = "pmb_display_per_" + instanceId;
+    const displayCombinedId = "pmb_display_combined_" + instanceId;
+    const displayName = "pmb_display_" + instanceId;
 
     widget.innerHTML = ''
       + '<div class="dashboard-widget-chrome">'
@@ -200,6 +206,25 @@ function initDashboardWidgetEditor() {
       +     '<label>' + escapeHtml(list.getAttribute("data-label-widget-title")) + '</label>'
       +     '<input type="text" class="pmb-title-input thin" maxlength="80" value=""'
       +            ' placeholder="' + escapeAttr(defaultTitle) + '">'
+      +   '</div>'
+      +   '<div class="form-group">'
+      +     '<label>' + escapeHtml(list.getAttribute("data-label-display-mode")) + '</label>'
+      +     '<div class="pmb-display-mode">'
+      +       '<div class="form-group-inline">'
+      +         '<input type="radio" class="pmb-display-mode-input" name="' + escapeAttr(displayName) + '"'
+      +                ' id="' + escapeAttr(displayPerId) + '" value="per_method" checked>'
+      +         '<label for="' + escapeAttr(displayPerId) + '">'
+      +           escapeHtml(list.getAttribute("data-label-display-per-method")) + '</label>'
+      +       '</div>'
+      +       '<div class="form-group-inline">'
+      +         '<input type="radio" class="pmb-display-mode-input" name="' + escapeAttr(displayName) + '"'
+      +                ' id="' + escapeAttr(displayCombinedId) + '" value="combined">'
+      +         '<label for="' + escapeAttr(displayCombinedId) + '">'
+      +           escapeHtml(list.getAttribute("data-label-display-combined")) + '</label>'
+      +       '</div>'
+      +     '</div>'
+      +     '<p class="settings-notes"><i class="fa-solid fa-circle-info"></i> '
+      +       escapeHtml(list.getAttribute("data-label-display-info")) + '</p>'
       +   '</div>'
       +   '<div class="form-group">'
       +     '<label>' + escapeHtml(list.getAttribute("data-label-select-methods")) + '</label>'
@@ -243,6 +268,12 @@ function initDashboardWidgetEditor() {
       delay: 150,
       delayOnTouchOnly: true,
       touchStartThreshold: 5,
+      // Scroll the page (and nested overflow containers) while dragging near edges.
+      scroll: true,
+      bubbleScroll: true,
+      forceAutoScrollFallback: true,
+      scrollSensitivity: 80,
+      scrollSpeed: 25,
       onEnd: function () {
         saveLayout();
       },
@@ -268,6 +299,14 @@ function initDashboardWidgetEditor() {
     enterEditMode();
   });
 
+  function readDisplayMode(widget) {
+    const checked = widget.querySelector(".pmb-display-mode-input:checked");
+    if (checked && checked.value === "combined") {
+      return "combined";
+    }
+    return "per_method";
+  }
+
   function applyOpenConfigPanels() {
     list.querySelectorAll(".dashboard-widget[data-widget-id='payment_method_budget']").forEach(function (widget) {
       const panel = widget.querySelector(".dashboard-widget-config");
@@ -281,6 +320,7 @@ function initDashboardWidgetEditor() {
         .filter(function (id) { return id > 0; });
       widget.setAttribute("data-title", title);
       widget.setAttribute("data-payment-method-ids", JSON.stringify(ids));
+      widget.setAttribute("data-display-mode", readDisplayMode(widget));
       syncChromeTitle(widget);
     });
   }
@@ -380,6 +420,7 @@ function initDashboardWidgetEditor() {
 
       widget.setAttribute("data-title", title);
       widget.setAttribute("data-payment-method-ids", JSON.stringify(ids));
+      widget.setAttribute("data-display-mode", readDisplayMode(widget));
       syncChromeTitle(widget);
 
       const panel = widget.querySelector(".dashboard-widget-config");
