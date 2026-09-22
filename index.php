@@ -108,8 +108,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     $aiRecommendations[] = $row;
 }
 
-// Payment-method budgets: period-scoped amount needed (same window as period budget)
-$paymentMethodBudgetRows = [];
+// Payment methods for multi-instance payment_method_budget widgets
 $pmStmt = $db->prepare('SELECT id, name, icon, enabled, budget FROM payment_methods WHERE user_id = :userId ORDER BY `order` ASC');
 $pmStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
 $pmResult = $pmStmt->execute();
@@ -117,17 +116,6 @@ $pmRows = [];
 while ($pmResult && ($pmRow = $pmResult->fetchArray(SQLITE3_ASSOC))) {
     $pmRows[] = $pmRow;
 }
-$paymentMethodBudgetRows = wallos_build_payment_method_budget_rows(
-    $pmRows,
-    $subscriptions ?? [],
-    $today ?? new DateTime('now'),
-    $budgetPeriodEnd ?? new DateTime('now'),
-    $db,
-    $userId,
-    null,
-    false,
-    true
-);
 
 $categoryCostRows = [];
 if (!empty($categoryCost)) {
@@ -177,7 +165,24 @@ if (!empty($categoryCost)) {
     ?>
     <div class="dashboard-header-row">
         <h1><?= translate('hello', $i18n) ?> <?= htmlspecialchars($first_name) ?></h1>
+        <div class="dashboard-edit-controls">
+            <button type="button"
+                    id="editDashboardWidgets"
+                    class="image-button medium dashboard-edit-toggle"
+                    title="<?= translate('edit_widgets', $i18n) ?>"
+                    aria-label="<?= translate('edit_widgets', $i18n) ?>">
+                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    id="doneDashboardWidgets"
+                    class="image-button medium dashboard-edit-toggle"
+                    title="<?= translate('done_editing_widgets', $i18n) ?>"
+                    aria-label="<?= translate('done_editing_widgets', $i18n) ?>">
+                <i class="fa-solid fa-check" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
+    <p class="dashboard-edit-hint"><?= translate('edit_widgets_hint', $i18n) ?></p>
 
     <?php require_once 'includes/dashboard_widgets_view.php'; ?>
 

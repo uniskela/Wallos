@@ -31,30 +31,69 @@ if (!function_exists('wallos_widget_ids')) {
 if (!function_exists('wallos_default_dashboard_widget_layout')) {
     /**
      * Default stack: all widgets enabled in stable public order.
+     * payment_method_budget ships as one configurable instance (all methods with budgets).
      *
-     * @return array<int, array{widget_id: string, enabled: bool}>
+     * @return array<int, array>
      */
     function wallos_default_dashboard_widget_layout()
     {
         $layout = [];
         foreach (wallos_widget_ids() as $widgetId) {
-            $layout[] = [
-                'widget_id' => $widgetId,
-                'enabled' => true,
-            ];
+            if ($widgetId === 'payment_method_budget') {
+                $layout[] = wallos_make_payment_method_budget_instance([], '', true, 'pmb_default');
+            } else {
+                $layout[] = [
+                    'widget_id' => $widgetId,
+                    'enabled' => true,
+                ];
+            }
         }
 
         return $layout;
     }
 }
 
+if (!function_exists('wallos_make_payment_method_budget_instance')) {
+    /**
+     * @param int[] $paymentMethodIds empty = all methods that have a budget
+     * @param string|null $instanceId null = generate; use 'pmb_default' for the migrated singleton
+     */
+    function wallos_make_payment_method_budget_instance(array $paymentMethodIds = [], $title = '', $enabled = true, $instanceId = null)
+    {
+        if (!is_string($instanceId) || $instanceId === '') {
+            try {
+                $instanceId = 'pmb_' . bin2hex(random_bytes(4));
+            } catch (Throwable $e) {
+                $instanceId = 'pmb_' . substr(sha1(uniqid('', true)), 0, 8);
+            }
+        }
+
+        $ids = [];
+        foreach ($paymentMethodIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return [
+            'widget_id' => 'payment_method_budget',
+            'instance_id' => $instanceId,
+            'enabled' => (bool) $enabled,
+            'payment_method_ids' => array_values(array_unique($ids)),
+            'title' => is_string($title) ? trim($title) : '',
+        ];
+    }
+}
+
 if (!function_exists('wallos_normalize_dashboard_widget_layout_input')) {
     /**
      * Validate and normalize a client-submitted layout.
-     * Returns null when invalid.
+     * Singleton widgets appear at most once; payment_method_budget may appear many times
+     * (each with a unique instance_id).
      *
      * @param mixed $widgets
-     * @return array<int, array{widget_id: string, enabled: bool}>|null
+     * @return array<int, array>|null
      */
     function wallos_normalize_dashboard_widget_layout_input($widgets)
     {
@@ -63,8 +102,10 @@ if (!function_exists('wallos_normalize_dashboard_widget_layout_input')) {
         }
 
         $allowed = wallos_widget_ids();
-        $seen = [];
+        $seenSingletons = [];
+        $seenInstanceIds = [];
         $normalized = [];
+        $hasPaymentMethodBudget = false;
 
         foreach ($widgets as $entry) {
             if (!is_array($entry)) {
@@ -74,13 +115,50 @@ if (!function_exists('wallos_normalize_dashboard_widget_layout_input')) {
             if (!is_string($widgetId) || !in_array($widgetId, $allowed, true)) {
                 return null;
             }
-            if (isset($seen[$widgetId])) {
-                return null;
-            }
-            $seen[$widgetId] = true;
 
             $enabled = $entry['enabled'] ?? true;
             $enabledBool = ($enabled === true || $enabled === 1 || $enabled === '1');
+
+            if ($widgetId === 'payment_method_budget') {
+                $instanceId = $entry['instance_id'] ?? null;
+                if (!is_string($instanceId) || $instanceId === '') {
+                    // Stable migration id for legacy single entries missing instance_id.
+                    $instanceId = isset($seenInstanceIds['pmb_default']) ? null : 'pmb_default';
+                }
+                if ($instanceId !== null && isset($seenInstanceIds[$instanceId])) {
+                    return null;
+                }
+
+                $methodIds = [];
+                if (isset($entry['payment_method_ids']) && is_array($entry['payment_method_ids'])) {
+                    foreach ($entry['payment_method_ids'] as $id) {
+                        if (is_numeric($id) && (int) $id > 0) {
+                            $methodIds[] = (int) $id;
+                        }
+                    }
+                }
+
+                $title = isset($entry['title']) && is_string($entry['title']) ? trim($entry['title']) : '';
+                if ($title !== '') {
+                    if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+                        if (mb_strlen($title) > 80) {
+                            $title = mb_substr($title, 0, 80);
+                        }
+                    } elseif (strlen($title) > 80) {
+                        $title = substr($title, 0, 80);
+                    }
+                }
+                $instance = wallos_make_payment_method_budget_instance($methodIds, $title, $enabledBool, $instanceId);
+                $seenInstanceIds[$instance['instance_id']] = true;
+                $hasPaymentMethodBudget = true;
+                $normalized[] = $instance;
+                continue;
+            }
+
+            if (isset($seenSingletons[$widgetId])) {
+                return null;
+            }
+            $seenSingletons[$widgetId] = true;
 
             $normalized[] = [
                 'widget_id' => $widgetId,
@@ -90,7 +168,13 @@ if (!function_exists('wallos_normalize_dashboard_widget_layout_input')) {
 
         // Append any missing known widgets (defaults ON) so upgrades stay complete.
         foreach ($allowed as $widgetId) {
-            if (!isset($seen[$widgetId])) {
+            if ($widgetId === 'payment_method_budget') {
+                if (!$hasPaymentMethodBudget) {
+                    $normalized[] = wallos_make_payment_method_budget_instance([], '', true, 'pmb_default');
+                }
+                continue;
+            }
+            if (!isset($seenSingletons[$widgetId])) {
                 $normalized[] = [
                     'widget_id' => $widgetId,
                     'enabled' => true,
@@ -106,7 +190,7 @@ if (!function_exists('wallos_get_dashboard_widget_layout')) {
     /**
      * Resolve layout from JSON column, falling back to legacy boolean columns.
      *
-     * @return array<int, array{widget_id: string, enabled: bool}>
+     * @return array<int, array>
      */
     function wallos_get_dashboard_widget_layout(array $settings)
     {
@@ -119,13 +203,18 @@ if (!function_exists('wallos_get_dashboard_widget_layout')) {
             }
         }
 
-        // Legacy: boolean columns in default order.
+        // Legacy: boolean columns in default order (one PMB instance).
         $layout = [];
         foreach (wallos_widget_ids() as $widgetId) {
-            $layout[] = [
-                'widget_id' => $widgetId,
-                'enabled' => wallos_is_widget_enabled_legacy($settings, $widgetId),
-            ];
+            $enabled = wallos_is_widget_enabled_legacy($settings, $widgetId);
+            if ($widgetId === 'payment_method_budget') {
+                $layout[] = wallos_make_payment_method_budget_instance([], '', $enabled, 'pmb_default');
+            } else {
+                $layout[] = [
+                    'widget_id' => $widgetId,
+                    'enabled' => $enabled,
+                ];
+            }
         }
 
         return $layout;
@@ -154,16 +243,42 @@ if (!function_exists('wallos_widget_setting_column')) {
 if (!function_exists('wallos_is_widget_enabled')) {
     /**
      * Visibility from JSON layout (preferred) or legacy boolean columns.
+     * For payment_method_budget, true if any instance is enabled.
      */
     function wallos_is_widget_enabled(array $settings, $widgetId)
     {
+        $found = false;
         foreach (wallos_get_dashboard_widget_layout($settings) as $entry) {
-            if ($entry['widget_id'] === $widgetId) {
-                return $entry['enabled'];
+            if ($entry['widget_id'] !== $widgetId) {
+                continue;
+            }
+            $found = true;
+            if (!empty($entry['enabled'])) {
+                return true;
             }
         }
 
-        return true;
+        return $found ? false : true;
+    }
+}
+
+if (!function_exists('wallos_find_payment_method_budget_instance')) {
+    /**
+     * @return array|null
+     */
+    function wallos_find_payment_method_budget_instance(array $settings, $instanceId)
+    {
+        if (!is_string($instanceId) || $instanceId === '') {
+            return null;
+        }
+        foreach (wallos_get_dashboard_widget_layout($settings) as $entry) {
+            if (($entry['widget_id'] ?? '') === 'payment_method_budget'
+                && ($entry['instance_id'] ?? '') === $instanceId) {
+                return $entry;
+            }
+        }
+
+        return null;
     }
 }
 
@@ -380,16 +495,29 @@ if (!function_exists('wallos_list_widgets_catalog')) {
         foreach (wallos_get_dashboard_widget_layout($settings) as $order => $entry) {
             $widgetId = $entry['widget_id'];
             $titleKey = wallos_widget_title_key($widgetId);
-            $widgets[] = [
+            $defaultTitle = function_exists('translate')
+                ? translate($titleKey, $i18n)
+                : ($i18n[$titleKey] ?? $widgetId);
+            $customTitle = isset($entry['title']) && is_string($entry['title']) && $entry['title'] !== ''
+                ? $entry['title']
+                : null;
+
+            $item = [
                 'widget_id' => $widgetId,
-                'enabled' => $entry['enabled'],
+                'enabled' => !empty($entry['enabled']),
                 'order' => (int) $order,
-                'title' => function_exists('translate')
-                    ? translate($titleKey, $i18n)
-                    : ($i18n[$titleKey] ?? $widgetId),
-                // Optional filters (e.g. payment_method_id) are never required.
+                'title' => $customTitle ?? $defaultTitle,
+                // Optional filters / instance_id are never strictly required.
                 'requires_params' => false,
             ];
+
+            if ($widgetId === 'payment_method_budget') {
+                $item['instance_id'] = $entry['instance_id'] ?? null;
+                $item['payment_method_ids'] = array_values($entry['payment_method_ids'] ?? []);
+                $item['default_title'] = $defaultTitle;
+            }
+
+            $widgets[] = $item;
         }
 
         return [
@@ -399,5 +527,4 @@ if (!function_exists('wallos_list_widgets_catalog')) {
         ];
     }
 }
-
 ?>

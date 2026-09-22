@@ -23,12 +23,20 @@ $stmt->bindValue(':layout', $json, SQLITE3_TEXT);
 $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
 
 if ($stmt->execute()) {
-    // Keep legacy boolean columns in sync so older readers stay consistent.
+    // Keep legacy boolean columns in sync (OR of instances for payment_method_budget).
+    $legacyEnabled = [];
+    foreach (wallos_widget_ids() as $widgetId) {
+        $legacyEnabled[$widgetId] = false;
+    }
     foreach ($normalized as $entry) {
-        $column = wallos_widget_setting_column($entry['widget_id']);
-        $enabled = $entry['enabled'] ? 1 : 0;
+        if (!empty($entry['enabled'])) {
+            $legacyEnabled[$entry['widget_id']] = true;
+        }
+    }
+    foreach ($legacyEnabled as $widgetId => $enabled) {
+        $column = wallos_widget_setting_column($widgetId);
         $flagStmt = $db->prepare("UPDATE settings SET {$column} = :enabled WHERE user_id = :userId");
-        $flagStmt->bindValue(':enabled', $enabled, SQLITE3_INTEGER);
+        $flagStmt->bindValue(':enabled', $enabled ? 1 : 0, SQLITE3_INTEGER);
         $flagStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
         $flagStmt->execute();
     }

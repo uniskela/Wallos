@@ -5,45 +5,83 @@
  */
 
 $dashboardWidgetLayout = wallos_get_dashboard_widget_layout($settings);
+$paymentMethodsForPicker = $pmRows ?? [];
 
 $widgetHasContent = [
     'overdue' => $hasOverdueSubscriptions,
-    'upcoming' => true, // always has a section (empty state message ok)
+    'upcoming' => true,
     'ai' => !empty($aiRecommendations),
     'monthly_budget' => isset($totalCostPerMonth),
     'period_budget' => isset($periodBudget) && $periodBudget > 0,
-    'payment_method_budget' => !empty($paymentMethodBudgetRows),
     'subscriptions' => isset($activeSubscriptions) && $activeSubscriptions > 0,
     'savings' => isset($inactiveSubscriptions) && $inactiveSubscriptions > 0,
     'category_cost' => !empty($categoryCostRows),
 ];
 
 ?>
-<div class="dashboard-toolbar">
-    <button type="button" id="editDashboardWidgets" class="button thin" title="<?= translate('edit_widgets', $i18n) ?>">
-        <i class="fa-solid fa-sliders" aria-hidden="true"></i>
-        <span><?= translate('edit_widgets', $i18n) ?></span>
-    </button>
-    <button type="button" id="doneDashboardWidgets" class="button thin" hidden title="<?= translate('done_editing_widgets', $i18n) ?>">
-        <i class="fa-solid fa-check" aria-hidden="true"></i>
-        <span><?= translate('done_editing_widgets', $i18n) ?></span>
-    </button>
-    <p class="dashboard-edit-hint" hidden><?= translate('edit_widgets_hint', $i18n) ?></p>
-</div>
 
-<div id="dashboard-widgets-list" class="dashboard-widgets-list sortable-list">
+<div id="dashboard-widgets-list"
+     class="dashboard-widgets-list sortable-list"
+     data-default-pmb-title="<?= htmlspecialchars(translate('payment_method_budget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-configure="<?= htmlspecialchars(translate('configure_payment_method_budget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-remove="<?= htmlspecialchars(translate('remove_payment_method_budget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-widget-title="<?= htmlspecialchars(translate('widget_title', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-select-methods="<?= htmlspecialchars(translate('select_payment_methods', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-select-info="<?= htmlspecialchars(translate('payment_method_budget_select_info', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-save="<?= htmlspecialchars(translate('save', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-empty="<?= htmlspecialchars(translate('widget_no_data', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-show="<?= htmlspecialchars(translate('show_widget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-hide="<?= htmlspecialchars(translate('hide_widget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-label-reorder="<?= htmlspecialchars(translate('reorder_widget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-confirm-remove="<?= htmlspecialchars(translate('confirm_remove_payment_method_budget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-cannot-remove-last="<?= htmlspecialchars(translate('cannot_remove_last_payment_method_budget', $i18n), ENT_QUOTES, 'UTF-8') ?>"
+     data-payment-methods="<?= htmlspecialchars(json_encode(array_map(function ($m) {
+         return [
+             'id' => (int) $m['id'],
+             'name' => $m['name'],
+             'budget' => (float) ($m['budget'] ?? 0),
+             'enabled' => (int) ($m['enabled'] ?? 1) === 1,
+         ];
+     }, $paymentMethodsForPicker), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>">
 <?php
 foreach ($dashboardWidgetLayout as $entry) {
     $widgetId = $entry['widget_id'];
-    $enabled = $entry['enabled'];
-    $hasContent = !empty($widgetHasContent[$widgetId]);
+    $enabled = !empty($entry['enabled']);
+    $instanceId = $entry['instance_id'] ?? '';
+    $configuredMethodIds = array_values($entry['payment_method_ids'] ?? []);
+    $customTitle = isset($entry['title']) && is_string($entry['title']) ? trim($entry['title']) : '';
     $titleKey = wallos_widget_title_key($widgetId);
-    $title = translate($titleKey, $i18n);
+    $defaultTitle = translate($titleKey, $i18n);
+    $title = $customTitle !== '' ? $customTitle : $defaultTitle;
+
+    $instanceRows = [];
+    if ($widgetId === 'payment_method_budget') {
+        $filterIds = !empty($configuredMethodIds) ? $configuredMethodIds : null;
+        $instanceRows = wallos_build_payment_method_budget_rows(
+            $paymentMethodsForPicker,
+            $subscriptions ?? [],
+            $today ?? new DateTime('now'),
+            $budgetPeriodEnd ?? new DateTime('now'),
+            $db,
+            $userId,
+            $filterIds,
+            $filterIds !== null, // keep explicitly selected methods even if disabled later
+            $filterIds === null
+        );
+        $hasContent = !empty($instanceRows);
+    } else {
+        $hasContent = !empty($widgetHasContent[$widgetId]);
+    }
     ?>
     <div class="dashboard-widget"
          data-widget-id="<?= htmlspecialchars($widgetId, ENT_QUOTES, 'UTF-8') ?>"
          data-enabled="<?= $enabled ? '1' : '0' ?>"
-         data-has-content="<?= $hasContent ? '1' : '0' ?>">
+         data-has-content="<?= $hasContent ? '1' : '0' ?>"
+         <?php if ($widgetId === 'payment_method_budget') { ?>
+         data-instance-id="<?= htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') ?>"
+         data-payment-method-ids="<?= htmlspecialchars(json_encode($configuredMethodIds), ENT_QUOTES, 'UTF-8') ?>"
+         data-title="<?= htmlspecialchars($customTitle, ENT_QUOTES, 'UTF-8') ?>"
+         <?php } ?>>
         <div class="dashboard-widget-chrome">
             <div class="drag-icon" title="<?= translate('reorder_widget', $i18n) ?>">
                 <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
@@ -54,8 +92,50 @@ foreach ($dashboardWidgetLayout as $entry) {
                     aria-pressed="<?= $enabled ? 'true' : 'false' ?>">
                 <i class="fa-solid <?= $enabled ? 'fa-eye' : 'fa-eye-slash' ?>" aria-hidden="true"></i>
             </button>
+            <?php if ($widgetId === 'payment_method_budget') { ?>
+                <button type="button"
+                        class="dashboard-widget-configure image-button medium"
+                        title="<?= translate('configure_payment_method_budget', $i18n) ?>">
+                    <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="dashboard-widget-remove image-button medium"
+                        title="<?= translate('remove_payment_method_budget', $i18n) ?>">
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                </button>
+            <?php } ?>
             <span class="dashboard-widget-chrome-title"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></span>
         </div>
+        <?php if ($widgetId === 'payment_method_budget') { ?>
+        <div class="dashboard-widget-config" hidden>
+            <div class="form-group">
+                <label><?= translate('widget_title', $i18n) ?></label>
+                <input type="text" class="pmb-title-input thin" maxlength="80"
+                       value="<?= htmlspecialchars($customTitle, ENT_QUOTES, 'UTF-8') ?>"
+                       placeholder="<?= htmlspecialchars($defaultTitle, ENT_QUOTES, 'UTF-8') ?>">
+            </div>
+            <div class="form-group">
+                <label><?= translate('select_payment_methods', $i18n) ?></label>
+                <div class="pmb-method-checks">
+                    <?php foreach ($paymentMethodsForPicker as $method) {
+                        if ((int) ($method['enabled'] ?? 1) !== 1) {
+                            continue;
+                        }
+                        $mid = (int) $method['id'];
+                        // Empty configured list means "all with budgets" — leave none checked.
+                        $checked = !empty($configuredMethodIds) && in_array($mid, $configuredMethodIds, true);
+                        ?>
+                        <label class="form-group-inline pmb-method-option">
+                            <input type="checkbox" value="<?= $mid ?>" <?= $checked ? 'checked' : '' ?>>
+                            <span><?= htmlspecialchars($method['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                        </label>
+                    <?php } ?>
+                </div>
+                <p class="settings-notes"><i class="fa-solid fa-circle-info"></i> <?= translate('payment_method_budget_select_info', $i18n) ?></p>
+            </div>
+            <input type="button" class="button thin pmb-config-save" value="<?= translate('save', $i18n) ?>">
+        </div>
+        <?php } ?>
         <div class="dashboard-widget-body">
             <?php
             switch ($widgetId) {
@@ -326,14 +406,14 @@ foreach ($dashboardWidgetLayout as $entry) {
                     break;
 
                 case 'payment_method_budget':
-                    if (!empty($paymentMethodBudgetRows)) {
+                    if (!empty($instanceRows)) {
                         ?>
                         <div class="budget-subscriptions payment-method-budget">
-                            <h2><?= translate('payment_method_budget', $i18n) ?></h2>
+                            <h2><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h2>
                             <?php if (isset($budgetPeriodLabel)) { ?>
                                 <p class="header-subtitle"><?= translate('current_period', $i18n) ?>: <?= htmlspecialchars($budgetPeriodLabel, ENT_QUOTES, 'UTF-8') ?></p>
                             <?php } ?>
-                            <?php foreach ($paymentMethodBudgetRows as $methodBudget) { ?>
+                            <?php foreach ($instanceRows as $methodBudget) { ?>
                                 <h3 class="payment-method-budget-name"><?= htmlspecialchars($methodBudget['name'], ENT_QUOTES, 'UTF-8') ?></h3>
                                 <div class="dashboard-subscriptions-container">
                                     <div class="dashboard-subscriptions-list">
@@ -504,3 +584,10 @@ foreach ($dashboardWidgetLayout as $entry) {
 }
 ?>
 </div>
+<button type="button"
+        id="addPaymentMethodBudgetWidget"
+        class="button thin dashboard-add-pmb"
+        hidden>
+    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+    <?= translate('add_payment_method_budget', $i18n) ?>
+</button>

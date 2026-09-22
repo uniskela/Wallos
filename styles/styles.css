@@ -1286,27 +1286,38 @@ header #avatar {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.dashboard-toolbar {
+.dashboard-header-row > h1 {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+}
+
+.dashboard-edit-controls {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 16px;
+  flex: 0 0 auto;
+  gap: 4px;
 }
 
-.dashboard-toolbar .button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+/* Visibility is class-driven so .button/.image-button display rules cannot
+   override the HTML hidden attribute (that was why Done stayed visible). */
+.dashboard:not(.editing-widgets) #doneDashboardWidgets,
+.dashboard.editing-widgets #editDashboardWidgets {
+  display: none !important;
 }
 
 .dashboard-edit-hint {
-  margin: 0;
+  display: none;
+  margin: 6px 0 12px;
   opacity: 0.8;
   font-size: 0.95rem;
+}
+
+.dashboard.editing-widgets .dashboard-edit-hint {
+  display: block;
 }
 
 .dashboard-widgets-list {
@@ -1373,15 +1384,46 @@ header #avatar {
   border: 1px solid var(--accent-color);
 }
 
-@media (max-width: 768px) {
-  .dashboard-toolbar {
-    width: 100%;
-  }
+.dashboard-widget-config {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: rgba(var(--accent-color-rgb), 0.08);
+}
 
-  .dashboard-toolbar .button {
-    flex: 1 1 auto;
-    justify-content: center;
-  }
+.dashboard-widget-config .form-group {
+  margin-bottom: 10px;
+}
+
+.pmb-method-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.pmb-method-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.dashboard-add-pmb {
+  display: none;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.dashboard.editing-widgets .dashboard-add-pmb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dashboard.editing-widgets .dashboard-add-pmb[hidden] {
+  display: none !important;
 }
 
 .credits-list {

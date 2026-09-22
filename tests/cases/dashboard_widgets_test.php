@@ -34,7 +34,118 @@ wallos_test('widget catalog includes schema_version order and all widget ids', f
         assert_true($widget['enabled'] === true, $widget['widget_id'] . ' defaults enabled');
         assert_true($widget['requires_params'] === false, $widget['widget_id'] . ' has no required params');
         assert_same($index, $widget['order'], $widget['widget_id'] . ' has order index');
+        if ($widget['widget_id'] === 'payment_method_budget') {
+            assert_same('pmb_default', $widget['instance_id'], 'default PMB has stable instance_id');
+            assert_same([], $widget['payment_method_ids'], 'default PMB has empty method filter');
+        }
     }
+});
+
+wallos_test('payment_method_budget supports multiple layout instances', function () {
+    $layout = [
+        ['widget_id' => 'upcoming', 'enabled' => true],
+        wallos_make_payment_method_budget_instance([1, 3], 'Personal cards', true, 'pmb_aaaa1111'),
+        wallos_make_payment_method_budget_instance([2], 'Business bank', false, 'pmb_bbbb2222'),
+        ['widget_id' => 'savings', 'enabled' => true],
+    ];
+    $normalized = wallos_normalize_dashboard_widget_layout_input($layout);
+    assert_true($normalized !== null, 'multi-instance layout accepted');
+
+    $pmb = array_values(array_filter($normalized, function ($e) {
+        return $e['widget_id'] === 'payment_method_budget';
+    }));
+    assert_same(2, count($pmb), 'two PMB instances kept');
+    assert_same('pmb_aaaa1111', $pmb[0]['instance_id'], 'stable instance id 1');
+    assert_same([1, 3], $pmb[0]['payment_method_ids'], 'method ids instance 1');
+    assert_same('Personal cards', $pmb[0]['title'], 'custom title instance 1');
+    assert_same('pmb_bbbb2222', $pmb[1]['instance_id'], 'stable instance id 2');
+    assert_same([2], $pmb[1]['payment_method_ids'], 'method ids instance 2');
+    assert_true($pmb[1]['enabled'] === false, 'instance 2 disabled');
+
+    $settings = ['dashboard_widget_layout' => json_encode($normalized)];
+    assert_true(wallos_is_widget_enabled($settings, 'payment_method_budget'), 'any enabled instance => type enabled');
+
+    $found = wallos_find_payment_method_budget_instance($settings, 'pmb_bbbb2222');
+    assert_true($found !== null, 'find by instance_id');
+    assert_same([2], $found['payment_method_ids'], 'found instance methods');
+    assert_same(null, wallos_find_payment_method_budget_instance($settings, 'missing'), 'missing instance');
+
+    $catalog = wallos_list_widgets_catalog($settings, [
+        'overdue_renewals' => 'Overdue',
+        'upcoming_payments' => 'Upcoming',
+        'ai_recommendations' => 'AI',
+        'monthly_budget' => 'Monthly',
+        'period_budget' => 'Period',
+        'payment_method_budget' => 'Method',
+        'your_subscriptions' => 'Subs',
+        'your_savings' => 'Savings',
+        'category_cost' => 'Categories',
+    ]);
+    $catalogPmb = array_values(array_filter($catalog['widgets'], function ($w) {
+        return $w['widget_id'] === 'payment_method_budget';
+    }));
+    assert_same(2, count($catalogPmb), 'catalog lists each PMB instance');
+    assert_same('Personal cards', $catalogPmb[0]['title'], 'catalog uses custom title');
+    assert_same([1, 3], $catalogPmb[0]['payment_method_ids'], 'catalog includes method ids');
+    assert_same('pmb_bbbb2222', $catalogPmb[1]['instance_id'], 'catalog instance id');
+    assert_true($catalogPmb[1]['enabled'] === false, 'catalog enabled per instance');
+});
+
+wallos_test('duplicate payment_method_budget instance_ids are rejected', function () {
+    $layout = [
+        wallos_make_payment_method_budget_instance([1], 'A', true, 'pmb_same'),
+        wallos_make_payment_method_budget_instance([2], 'B', true, 'pmb_same'),
+    ];
+    assert_same(null, wallos_normalize_dashboard_widget_layout_input($layout), 'duplicate instance_id rejected');
+});
+
+wallos_test('legacy layout without instance_id migrates to one PMB instance', function () {
+    $legacy = [
+        ['widget_id' => 'upcoming', 'enabled' => true],
+        ['widget_id' => 'payment_method_budget', 'enabled' => false],
+        ['widget_id' => 'savings', 'enabled' => true],
+    ];
+    $normalized = wallos_normalize_dashboard_widget_layout_input($legacy);
+    assert_true($normalized !== null, 'legacy accepted');
+    $pmb = null;
+    foreach ($normalized as $entry) {
+        if ($entry['widget_id'] === 'payment_method_budget') {
+            $pmb = $entry;
+            break;
+        }
+    }
+    assert_true($pmb !== null, 'PMB present');
+    assert_same('pmb_default', $pmb['instance_id'], 'stable default instance_id');
+    assert_same([], $pmb['payment_method_ids'], 'empty filter = all with budgets');
+    assert_true($pmb['enabled'] === false, 'legacy enabled preserved');
+
+    // Re-reading the same layout must keep the same instance_id (HA catalog stability).
+    $again = wallos_normalize_dashboard_widget_layout_input($normalized);
+    $pmbAgain = null;
+    foreach ($again as $entry) {
+        if ($entry['widget_id'] === 'payment_method_budget') {
+            $pmbAgain = $entry;
+            break;
+        }
+    }
+    assert_same('pmb_default', $pmbAgain['instance_id'], 'normalize is idempotent for instance_id');
+
+    $fromDefault = wallos_get_dashboard_widget_layout([]);
+    $fromDefault2 = wallos_get_dashboard_widget_layout([]);
+    $id1 = null;
+    $id2 = null;
+    foreach ($fromDefault as $entry) {
+        if ($entry['widget_id'] === 'payment_method_budget') {
+            $id1 = $entry['instance_id'];
+        }
+    }
+    foreach ($fromDefault2 as $entry) {
+        if ($entry['widget_id'] === 'payment_method_budget') {
+            $id2 = $entry['instance_id'];
+        }
+    }
+    assert_same('pmb_default', $id1, 'default layout stable id');
+    assert_same($id1, $id2, 'default layout id does not change across reads');
 });
 
 wallos_test('dashboard widget layout JSON overrides order and enabled flags', function () {

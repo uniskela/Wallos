@@ -8,7 +8,11 @@ Accepts GET or POST with:
 Returns:
 - success
 - schema_version (integer, currently 1)
-- widgets[]: widget_id, enabled, title, requires_params
+- widgets[]: widget_id, enabled, order, title, requires_params
+  payment_method_budget entries are listed once per dashboard instance with
+  instance_id and payment_method_ids (empty = all methods that have a budget).
+  HA/REST clients should target get_widget with widget_id=payment_method_budget
+  and instance_id=<id> from this list.
 */
 
 require_once '../../includes/connect_endpoint.php';

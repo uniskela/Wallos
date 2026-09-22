@@ -5,12 +5,14 @@ Widget payload API.
 Accepts GET or POST with:
 - api_key / apiKey (required)
 - widget_id (required)
-- payment_method_id (optional; single id or comma-separated list)
+- instance_id (optional; for payment_method_budget dashboard instances)
+- payment_method_id (optional; single id or comma-separated list; overrides instance filter)
 - include_disabled (optional; default false)
 - category_limit (optional; default 5 for category_cost)
 - reference_date (optional; YYYY-MM-DD)
 
 Returns JSON with success, schema_version, widget_id, and widget-specific fields.
+schema_version remains 1: instance_id / payment_method_ids are additive fields.
 */
 
 require_once '../../includes/connect_endpoint.php';
@@ -64,6 +66,15 @@ $includeDisabled = filter_var($includeDisabledRaw, FILTER_VALIDATE_BOOLEAN);
 $paymentMethodFilter = wallos_parse_payment_method_ids(
     $_REQUEST['payment_method_id'] ?? $payload['payment_method_id'] ?? null
 );
+$instanceId = $_REQUEST['instance_id'] ?? $payload['instance_id'] ?? null;
+if (is_string($instanceId)) {
+    $instanceId = trim($instanceId);
+} else {
+    $instanceId = null;
+}
+if ($instanceId === '') {
+    $instanceId = null;
+}
 $categoryLimit = (int) ($_REQUEST['category_limit'] ?? $payload['category_limit'] ?? 5);
 if ($categoryLimit < 1) {
     $categoryLimit = 5;
@@ -302,6 +313,41 @@ switch ($widgetId) {
             $paymentMethods[] = $row;
         }
 
+        $instance = null;
+        $configuredIds = null;
+        $instanceTitle = null;
+        if ($instanceId !== null) {
+            $instance = wallos_find_payment_method_budget_instance($settings, $instanceId);
+            if ($instance === null) {
+                echo json_encode([
+                    'success' => false,
+                    'title' => 'Unknown instance_id',
+                    'notes' => ['Pass an instance_id from list_widgets for payment_method_budget.'],
+                ], JSON_UNESCAPED_UNICODE);
+                $db->close();
+                exit;
+            }
+            $configuredIds = array_values($instance['payment_method_ids'] ?? []);
+            if (empty($configuredIds)) {
+                $configuredIds = null; // empty = all methods with budgets
+            }
+            $instanceTitle = isset($instance['title']) && $instance['title'] !== ''
+                ? $instance['title']
+                : null;
+            $response['instance_id'] = $instanceId;
+            $response['enabled'] = !empty($instance['enabled']);
+            $response['payment_method_ids'] = array_values($instance['payment_method_ids'] ?? []);
+            if ($instanceTitle !== null) {
+                $response['title'] = $instanceTitle;
+            }
+        }
+
+        // Explicit payment_method_id query param overrides the instance filter.
+        $effectiveFilter = $paymentMethodFilter !== null ? $paymentMethodFilter : $configuredIds;
+        $onlyWithBudget = $effectiveFilter === null;
+        // When filtering to configured/requested ids, include disabled so selection stays visible.
+        $includeDisabledForRows = $includeDisabled || $effectiveFilter !== null;
+
         $methods = wallos_build_payment_method_budget_rows(
             $paymentMethods,
             $activeSubscriptions,
@@ -309,9 +355,9 @@ switch ($widgetId) {
             $periodEnd,
             $db,
             $userId,
-            $paymentMethodFilter,
-            $includeDisabled,
-            true
+            $effectiveFilter,
+            $includeDisabledForRows,
+            $onlyWithBudget
         );
 
         $response['period'] = [
