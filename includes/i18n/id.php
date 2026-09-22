@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Anggaran bulanan dibandingkan dengan total biaya bulanan berlangganan Anda.",
     "period_budget" => "Anggaran Periode",
     "period_budget_info" => "Anggaran periode melacak apa yang perlu Anda bayar dalam periode anggaran yang dipilih.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Periode anggaran",
     "budget_anchor_date" => "Tanggal acuan",
     "fortnightly" => "Dua Mingguan",

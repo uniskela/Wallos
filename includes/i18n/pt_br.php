@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "O orçamento mensal é comparado com o custo total mensal das suas assinaturas.",
     "period_budget" => "Orçamento do Período",
     "period_budget_info" => "O orçamento do período acompanha o que você precisa pagar dentro do período de orçamento escolhido.",
+    "payment_method_budget" => "Orçamento por método de pagamento",
+    "payment_method_budget_info" => "Defina um orçamento por método de pagamento. O painel compara com o valor necessário no período orçamentário atual (mesma janela do orçamento por período).",
+    "category_cost" => "Custo por categoria",
+    "dashboard_widgets" => "Widgets do painel",
+    "dashboard_widgets_info" => "Escolha quais seções aparecem no painel. Todos os widgets ficam ativos por padrão.",
+
     "budget_period" => "Período de orçamento",
     "budget_anchor_date" => "Data de referência",
     "fortnightly" => "Quinzenal",

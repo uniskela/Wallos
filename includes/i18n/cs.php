@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Měsíční rozpočet se porovnává s celkovými měsíčními náklady na předplatná.",
     "period_budget" => "Rozpočet na období",
     "period_budget_info" => "Rozpočet na období sleduje, kolik je třeba zaplatit ve vybraném rozpočtovém období.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Rozpočtové období",
     "budget_anchor_date" => "Počáteční datum",
     "fortnightly" => "čtrnáct dní",

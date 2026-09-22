@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Het maandbudget wordt vergeleken met je totale maandelijkse abonnementskosten.",
     "period_budget" => "Periodebudget",
     "period_budget_info" => "Het periodebudget houdt bij wat je moet betalen binnen de gekozen budgetperiode.",
+    "payment_method_budget" => "Budget per betaalmethode",
+    "payment_method_budget_info" => "Stel een budget in per betaalmethode. Het dashboard vergelijkt dit met het benodigde bedrag in de huidige budgetperiode (zelfde venster als periodiebudget).",
+    "category_cost" => "Kosten per categorie",
+    "dashboard_widgets" => "Dashboard-widgets",
+    "dashboard_widgets_info" => "Kies welke secties op het dashboard verschijnen. Alle widgets staan standaard aan.",
+
     "budget_period" => "Budgetperiode",
     "budget_anchor_date" => "Startdatum",
     "fortnightly" => "Tweewekelijks",

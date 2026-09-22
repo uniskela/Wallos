@@ -197,6 +197,12 @@ $i18n = [
     "monthly_budget_info" => "Il budget mensile viene confrontato con il costo totale mensile dei tuoi abbonamenti.",
     "period_budget" => "Budget del Periodo",
     "period_budget_info" => "Il budget del periodo monitora quanto devi pagare nel periodo di budget scelto.",
+    "payment_method_budget" => "Budget per metodo di pagamento",
+    "payment_method_budget_info" => "Imposta un budget per metodo di pagamento. La dashboard lo confronta con l'importo necessario nel periodo di budget corrente (stessa finestra del budget periodico).",
+    "category_cost" => "Costo per categoria",
+    "dashboard_widgets" => "Widget della dashboard",
+    "dashboard_widgets_info" => "Scegli quali sezioni mostrare nella dashboard. Tutti i widget sono attivi per impostazione predefinita.",
+
     "budget_period" => "Periodo di budget",
     "budget_anchor_date" => "Data di ancoraggio",
     "fortnightly" => "Quindicina",

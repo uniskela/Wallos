@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "月間予算は、サブスクリプションの月間合計費用と比較されます。",
     "period_budget" => "期間予算",
     "period_budget_info" => "期間予算は、選択した予算期間内に支払う必要がある金額を追跡します。",
+    "payment_method_budget" => "支払い方法別予算",
+    "payment_method_budget_info" => "支払い方法ごとに予算を設定します。ダッシュボードでは現在の予算期間に必要な金額と比較します（期間予算と同じ期間）。",
+    "category_cost" => "カテゴリ別コスト",
+    "dashboard_widgets" => "ダッシュボードウィジェット",
+    "dashboard_widgets_info" => "ダッシュボードに表示するセクションを選択します。既定ではすべてのウィジェットが表示されます。",
+
     "budget_period" => "予算期間",
     "budget_anchor_date" => "基準日",
     "fortnightly" => "隔週",

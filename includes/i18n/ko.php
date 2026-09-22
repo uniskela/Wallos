@@ -213,6 +213,12 @@ $i18n = [
     "monthly_budget_info" => "전체 월간 구독 비용을 월 예산과 비교합니다.",
     "period_budget" => "기간 예산",
     "period_budget_info" => "선택한 기간에 결제해야 할 금액을 추적합니다.",
+    "payment_method_budget" => "결제 수단별 예산",
+    "payment_method_budget_info" => "결제 수단별로 예산을 설정합니다. 대시보드는 현재 예산 기간에 필요한 금액과 비교합니다(기간 예산과 동일한 구간).",
+    "category_cost" => "카테고리별 비용",
+    "dashboard_widgets" => "대시보드 위젯",
+    "dashboard_widgets_info" => "대시보드에 표시할 섹션을 선택합니다. 기본적으로 모든 위젯이 켜져 있습니다.",
+
     "budget_period" => "예산 기간",
     "budget_anchor_date" => "기준일",
     "fortnightly" => "2주",

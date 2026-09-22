@@ -213,6 +213,12 @@ $i18n = [
     "monthly_budget_info" => "تتم مقارنة الميزانية الشهرية بإجمالي التكلفة الشهرية لاشتراكاتك.",
     "period_budget" => "ميزانية الفترة",
     "period_budget_info" => "تتابع ميزانية الفترة ما يجب عليك دفعه خلال فترة الميزانية التي اخترتها.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "فترة الميزانية",
     "budget_anchor_date" => "تاريخ البداية",
     "fortnightly" => "أسبوعين",

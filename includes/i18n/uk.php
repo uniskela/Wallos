@@ -186,6 +186,12 @@ $i18n = [
     "monthly_budget_info" => "Місячний бюджет порівнюється із загальною щомісячною вартістю ваших підписок.",
     "period_budget" => "Бюджет періоду",
     "period_budget_info" => "Бюджет періоду відстежує, скільки потрібно сплатити у вибраному бюджетному періоді.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Бюджетний період",
     "budget_anchor_date" => "Дата відліку",
     "fortnightly" => "Раз на два тижні",

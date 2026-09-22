@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "El pressupost mensual es compara amb el cost total mensual de les teves subscripcions.",
     "period_budget" => "Pressupost del període",
     "period_budget_info" => "El pressupost del període fa un seguiment del que cal pagar dins del període de pressupost triat.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Període de pressupost",
     "budget_anchor_date" => "Data d'ancoratge",
     "fortnightly" => "Quinzena / Quinzenes",

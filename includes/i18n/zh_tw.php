@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "每月預算會與您訂閱的每月總費用進行比較。",
     "period_budget" => "週期預算",
     "period_budget_info" => "週期預算會追蹤您在所選預算週期內需要支付的金額。",
+    "payment_method_budget" => "付款方式預算",
+    "payment_method_budget_info" => "為每種付款方式設定預算。儀表板會將其與目前預算週期所需金額比較（與週期預算相同的時間窗口）。",
+    "category_cost" => "依分類費用",
+    "dashboard_widgets" => "儀表板小工具",
+    "dashboard_widgets_info" => "選擇儀表板上顯示的區塊。預設全部啟用。",
+
     "budget_period" => "預算週期",
     "budget_anchor_date" => "起始日期",
     "fortnightly" => "每兩週",

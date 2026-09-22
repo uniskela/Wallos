@@ -134,6 +134,46 @@ $upcomingPaymentsLimit = normalize_upcoming_payments_limit($settings['upcoming_p
         </div>
     </section>
 
+    <section class="account-section">
+        <header>
+            <h2><?= translate('payment_method_budget', $i18n) ?></h2>
+        </header>
+        <div class="account-budget payment-method-budgets">
+            <?php
+            $pmBudgetStmt = $db->prepare('SELECT id, name, budget FROM payment_methods WHERE user_id = :userId ORDER BY `order` ASC');
+            $pmBudgetStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+            $pmBudgetResult = $pmBudgetStmt->execute();
+            $hasPaymentMethodsForBudget = false;
+            while ($pmBudgetResult && ($pmBudgetRow = $pmBudgetResult->fetchArray(SQLITE3_ASSOC))) {
+                $hasPaymentMethodsForBudget = true;
+                $pmBudgetId = (int) $pmBudgetRow['id'];
+                $pmBudgetValue = (float) ($pmBudgetRow['budget'] ?? 0);
+                ?>
+                <div class="form-group-inline payment-method-budget-row" data-payment-method-id="<?= $pmBudgetId ?>">
+                    <label for="payment_method_budget_<?= $pmBudgetId ?>"><?= htmlspecialchars($pmBudgetRow['name'], ENT_QUOTES, 'UTF-8') ?></label>
+                    <span><?= htmlspecialchars($userData['currency_symbol'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                    <input type="number" id="payment_method_budget_<?= $pmBudgetId ?>" min="0" step="0.01"
+                        value="<?= htmlspecialchars((string) $pmBudgetValue, ENT_QUOTES, 'UTF-8') ?>"
+                        data-payment-method-id="<?= $pmBudgetId ?>" autocomplete="off">
+                    <input type="button" value="<?= translate('save', $i18n) ?>" class="thin"
+                        onClick="savePaymentMethodBudget(<?= $pmBudgetId ?>)">
+                </div>
+                <?php
+            }
+            if (!$hasPaymentMethodsForBudget) {
+                ?>
+                <p><?= translate('payment_methods', $i18n) ?></p>
+                <?php
+            }
+            ?>
+            <div class="settings-notes">
+                <p>
+                    <i class="fa-solid fa-circle-info"></i> <?= translate('payment_method_budget_info', $i18n) ?>
+                </p>
+            </div>
+        </div>
+    </section>
+
     <?php
     $sql = "SELECT * FROM household WHERE user_id = :userId";
     $stmt = $db->prepare($sql);
@@ -1748,6 +1788,41 @@ $upcomingPaymentsLimit = normalize_upcoming_payments_limit($settings['upcoming_p
                     <label for="hidedisabled"><?= translate('hide_disabled_subscriptions', $i18n) ?></label>
                 </div>
             </div>
+            <h3><?= translate('dashboard_widgets', $i18n) ?></h3>
+            <div class="settings-notes">
+                <p>
+                    <i class="fa-solid fa-circle-info"></i> <?= translate('dashboard_widgets_info', $i18n) ?>
+                </p>
+            </div>
+            <?php
+            require_once 'includes/widgets.php';
+            $widgetLabels = [
+                'overdue' => 'overdue_renewals',
+                'upcoming' => 'upcoming_payments',
+                'ai' => 'ai_recommendations',
+                'monthly_budget' => 'monthly_budget',
+                'period_budget' => 'period_budget',
+                'payment_method_budget' => 'payment_method_budget',
+                'subscriptions' => 'your_subscriptions',
+                'savings' => 'your_savings',
+                'category_cost' => 'category_cost',
+            ];
+            foreach ($widgetLabels as $widgetId => $labelKey) {
+                $column = wallos_widget_setting_column($widgetId);
+                $checked = wallos_is_widget_enabled($settings, $widgetId);
+                $inputId = 'dashboardwidget_' . $widgetId;
+                ?>
+                <div>
+                    <div class="form-group-inline">
+                        <input type="checkbox" id="<?= $inputId ?>" name="<?= $inputId ?>"
+                            data-widget-id="<?= htmlspecialchars($widgetId, ENT_QUOTES, 'UTF-8') ?>"
+                            onChange="setDashboardWidgetVisibility(this)" <?= $checked ? 'checked' : '' ?>>
+                        <label for="<?= $inputId ?>"><?= translate($labelKey, $i18n) ?></label>
+                    </div>
+                </div>
+                <?php
+            }
+            ?>
         </div>
     </section>
 

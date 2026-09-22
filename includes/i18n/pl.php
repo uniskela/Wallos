@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Budżet miesięczny jest porównywany z całkowitym miesięcznym kosztem Twoich subskrypcji.",
     "period_budget" => "Budżet okresu",
     "period_budget_info" => "Budżet okresu śledzi, ile musisz zapłacić w wybranym okresie budżetowym.",
+    "payment_method_budget" => "Budżet metody płatności",
+    "payment_method_budget_info" => "Ustaw budżet dla każdej metody płatności. Pulpit porównuje go z kwotą potrzebną w bieżącym okresie budżetowym (to samo okno co budżet okresowy).",
+    "category_cost" => "Koszt według kategorii",
+    "dashboard_widgets" => "Widżety pulpitu",
+    "dashboard_widgets_info" => "Wybierz, które sekcje mają być widoczne na pulpicie. Domyślnie wszystkie widżety są włączone.",
+
     "budget_period" => "Okres budżetowy",
     "budget_anchor_date" => "Data odniesienia",
     "fortnightly" => "Dwa tygodnie",

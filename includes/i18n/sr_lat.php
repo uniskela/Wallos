@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Mesečni budžet se upoređuje sa ukupnim mesečnim troškom vaših pretplata.",
     "period_budget" => "Budžet perioda",
     "period_budget_info" => "Budžet perioda prati koliko treba da platite u izabranom periodu budžeta.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Period budžeta",
     "budget_anchor_date" => "Referentni datum",
     "fortnightly" => "Dvonedeljno",

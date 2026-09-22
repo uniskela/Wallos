@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Ngân sách hàng tháng được so sánh với tổng chi phí đăng ký hàng tháng của bạn.",
     "period_budget" => "Ngân sách theo kỳ",
     "period_budget_info" => "Ngân sách theo kỳ theo dõi số tiền bạn cần thanh toán trong kỳ ngân sách đã chọn.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Kỳ ngân sách",
     "budget_anchor_date" => "Ngày mốc",
     "fortnightly" => "Hai tuần một lần",

@@ -97,6 +97,7 @@ $upcomingCancellations = get_upcoming_cancellations($db, $userId);
 $hasUpcomingCancellations = !empty($upcomingCancellations);
 
 require_once 'includes/stats_calculations.php';
+require_once 'includes/widgets.php';
 
 // Get AI Recommendations for user
 $stmt = $db->prepare("SELECT * FROM ai_recommendations WHERE user_id = :userId");
@@ -106,6 +107,44 @@ $aiRecommendations = [];
 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     $aiRecommendations[] = $row;
 }
+
+// Payment-method budgets: period-scoped amount needed (same window as period budget)
+$paymentMethodBudgetRows = [];
+if (wallos_is_widget_enabled($settings, 'payment_method_budget')) {
+    $pmStmt = $db->prepare('SELECT id, name, icon, enabled, budget FROM payment_methods WHERE user_id = :userId ORDER BY `order` ASC');
+    $pmStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $pmResult = $pmStmt->execute();
+    $pmRows = [];
+    while ($pmResult && ($pmRow = $pmResult->fetchArray(SQLITE3_ASSOC))) {
+        $pmRows[] = $pmRow;
+    }
+    $paymentMethodBudgetRows = wallos_build_payment_method_budget_rows(
+        $pmRows,
+        $subscriptions ?? [],
+        $today ?? new DateTime('now'),
+        $budgetPeriodEnd ?? new DateTime('now'),
+        $db,
+        $userId,
+        null,
+        false,
+        true
+    );
+}
+
+$categoryCostRows = [];
+if (wallos_is_widget_enabled($settings, 'category_cost') && !empty($categoryCost)) {
+    $categoryCostRows = wallos_build_category_cost_rows($categoryCost, 5);
+}
+
+$showWidgetOverdue = wallos_is_widget_enabled($settings, 'overdue');
+$showWidgetUpcoming = wallos_is_widget_enabled($settings, 'upcoming');
+$showWidgetAi = wallos_is_widget_enabled($settings, 'ai');
+$showWidgetMonthlyBudget = wallos_is_widget_enabled($settings, 'monthly_budget');
+$showWidgetPeriodBudget = wallos_is_widget_enabled($settings, 'period_budget');
+$showWidgetPaymentMethodBudget = wallos_is_widget_enabled($settings, 'payment_method_budget');
+$showWidgetSubscriptions = wallos_is_widget_enabled($settings, 'subscriptions');
+$showWidgetSavings = wallos_is_widget_enabled($settings, 'savings');
+$showWidgetCategoryCost = wallos_is_widget_enabled($settings, 'category_cost');
 
 ?>
 
@@ -152,7 +191,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
 
     <?php
     // If there are overdue subscriptions, display them
-    if ($hasOverdueSubscriptions) {
+    if ($showWidgetOverdue && $hasOverdueSubscriptions) {
         ?>
         <div class="overdue-subscriptions">
             <h2><?= translate('overdue_renewals', $i18n) ?></h2>
@@ -197,6 +236,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     }
     ?>
 
+    <?php if ($showWidgetUpcoming) { ?>
     <div class="upcoming-subscriptions">
         <h2><?= translate('upcoming_payments', $i18n) ?></h2>
         <div class="dashboard-subscriptions-container">
@@ -239,6 +279,8 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                 ?>
             </div>
         </div>
+    </div>
+    <?php } ?>
 
         <?php if ($hasUpcomingCancellations) { ?>
             <div class="cancellation-subscriptions">
@@ -279,7 +321,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
             </div>
         <?php } ?>
 
-        <?php if (!empty($aiRecommendations)) { ?>
+        <?php if ($showWidgetAi && !empty($aiRecommendations)) { ?>
             <div class="ai-recommendations">
                 <h2><?= translate('ai_recommendations', $i18n) ?></h2>
                 <div class="ai-recommendations-container">
@@ -312,7 +354,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
 
         <?php } ?>
 
-        <?php if (isset($totalCostPerMonth)) { ?>
+        <?php if ($showWidgetMonthlyBudget && isset($totalCostPerMonth)) { ?>
             <div class="budget-subscriptions">
                 <h2><?= translate('monthly_budget', $i18n) ?></h2>
                 <div class="dashboard-subscriptions-container">
@@ -368,7 +410,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
             </div>
         <?php } ?>
 
-        <?php if (isset($periodBudget) && $periodBudget > 0) { ?>
+        <?php if ($showWidgetPeriodBudget && isset($periodBudget) && $periodBudget > 0) { ?>
             <div class="budget-subscriptions">
                 <h2><?= translate('period_budget', $i18n) ?></h2>
                 <?php if (isset($budgetPeriodLabel)) { ?>
@@ -424,9 +466,86 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                 </div>
             </div>
         <?php } ?>
-    </div>
 
-    <?php if (isset($activeSubscriptions) && $activeSubscriptions > 0) { ?>
+        <?php if ($showWidgetPaymentMethodBudget && !empty($paymentMethodBudgetRows)) { ?>
+            <div class="budget-subscriptions payment-method-budget">
+                <h2><?= translate('payment_method_budget', $i18n) ?></h2>
+                <?php if (isset($budgetPeriodLabel)) { ?>
+                    <p class="header-subtitle"><?= translate('current_period', $i18n) ?>: <?= htmlspecialchars($budgetPeriodLabel, ENT_QUOTES, 'UTF-8') ?></p>
+                <?php } ?>
+                <?php foreach ($paymentMethodBudgetRows as $methodBudget) { ?>
+                    <h3 class="payment-method-budget-name"><?= htmlspecialchars($methodBudget['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                    <div class="dashboard-subscriptions-container">
+                        <div class="dashboard-subscriptions-list">
+                            <div class="subscription-item thin">
+                                <p class="subscription-item-title"><?= translate("amount_needed_this_period", $i18n) ?></p>
+                                <div class="subscription-item-info">
+                                    <p class="subscription-item-value">
+                                        <?= CurrencyFormatter::format($methodBudget['amount_needed'], $currencies[$userData['main_currency']]['code']) ?>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="subscription-item thin">
+                                <p class="subscription-item-title"><?= translate("budget", $i18n) ?></p>
+                                <div class="subscription-item-info">
+                                    <p class="subscription-item-value">
+                                        <?= formatPrice($methodBudget['budget'], $currencies[$userData['main_currency']]['code'], $currencies) ?>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="subscription-item thin">
+                                <p class="subscription-item-title"><?= translate("budget_used", $i18n) ?></p>
+                                <div class="subscription-item-info">
+                                    <p class="subscription-item-value">
+                                        <?= number_format($methodBudget['budget_used_percent'], 2) ?>%
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="subscription-item thin">
+                                <p class="subscription-item-title"><?= translate("budget_remaining", $i18n) ?></p>
+                                <div class="subscription-item-info">
+                                    <p class="subscription-item-value">
+                                        <?= formatPrice($methodBudget['remaining'], $currencies[$userData['main_currency']]['code'], $currencies) ?>
+                                    </p>
+                                </div>
+                            </div>
+                            <?php if ($methodBudget['over_budget'] > 0) { ?>
+                                <div class="subscription-item thin">
+                                    <p class="subscription-item-title"><?= translate("over_budget", $i18n) ?></p>
+                                    <div class="subscription-item-info">
+                                        <p class="subscription-item-value">
+                                            <?= formatPrice($methodBudget['over_budget'], $currencies[$userData['main_currency']]['code'], $currencies) ?>
+                                        </p>
+                                    </div>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                <?php } ?>
+            </div>
+        <?php } ?>
+
+        <?php if ($showWidgetCategoryCost && !empty($categoryCostRows)) { ?>
+            <div class="budget-subscriptions category-cost">
+                <h2><?= translate('category_cost', $i18n) ?></h2>
+                <div class="dashboard-subscriptions-container">
+                    <div class="dashboard-subscriptions-list">
+                        <?php foreach ($categoryCostRows as $categoryRow) { ?>
+                            <div class="subscription-item thin">
+                                <p class="subscription-item-title"><?= htmlspecialchars($categoryRow['name'], ENT_QUOTES, 'UTF-8') ?></p>
+                                <div class="subscription-item-info">
+                                    <p class="subscription-item-value">
+                                        <?= CurrencyFormatter::format($categoryRow['monthly_cost'], $currencies[$userData['main_currency']]['code']) ?>
+                                    </p>
+                                </div>
+                            </div>
+                        <?php } ?>
+                    </div>
+                </div>
+            </div>
+        <?php } ?>
+
+    <?php if ($showWidgetSubscriptions && isset($activeSubscriptions) && $activeSubscriptions > 0) { ?>
         <div class="current-subscriptions">
             <h2><?= translate('your_subscriptions', $i18n) ?></h2>
             <div class="dashboard-subscriptions-container">
@@ -464,7 +583,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         </div>
     <?php } ?>
 
-    <?php if (isset($inactiveSubscriptions) && $inactiveSubscriptions > 0) { ?>
+    <?php if ($showWidgetSavings && isset($inactiveSubscriptions) && $inactiveSubscriptions > 0) { ?>
         <div class="savings-subscriptions">
             <h2><?= translate('your_savings', $i18n) ?></h2>
             <div class="dashboard-subscriptions-container">

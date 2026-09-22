@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "El presupuesto mensual se compara con el costo total mensual de tus suscripciones.",
     "period_budget" => "Presupuesto del Periodo",
     "period_budget_info" => "El presupuesto del periodo hace seguimiento de lo que necesitas pagar dentro del periodo de presupuesto elegido.",
+    "payment_method_budget" => "Presupuesto por método de pago",
+    "payment_method_budget_info" => "Define un presupuesto por método de pago. El panel lo compara con el importe necesario en el periodo presupuestario actual (misma ventana que el presupuesto por periodo).",
+    "category_cost" => "Coste por categoría",
+    "dashboard_widgets" => "Widgets del panel",
+    "dashboard_widgets_info" => "Elige qué secciones aparecen en el panel. Todos los widgets están activados por defecto.",
+
     "budget_period" => "Periodo de presupuesto",
     "budget_anchor_date" => "Fecha de referencia",
     "fortnightly" => "Quincena(s)",

@@ -214,6 +214,12 @@ $i18n = [
     "monthly_budget_info" => "Aylıq büdcə ümumi aylıq abunə xərcinizlə müqayisə olunur.",
     "period_budget" => "Dövr büdcəsi",
     "period_budget_info" => "Dövr büdcəsi seçdiyiniz büdcə dövrü ərzində ödəməli olduğunuz məbləği izləyir.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Büdcə dövrü",
     "budget_anchor_date" => "Baza tarixi",
     "fortnightly" => "İki həftə",

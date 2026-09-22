@@ -198,6 +198,12 @@ $i18n = [
     "monthly_budget_info" => "月度预算会与您的订阅月度总费用进行比较。",
     "period_budget" => "周期预算",
     "period_budget_info" => "周期预算跟踪您在所选预算周期内需要支付的金额。",
+    "payment_method_budget" => "付款方式预算",
+    "payment_method_budget_info" => "为每种付款方式设置预算。仪表盘会将其与当前预算周期所需金额比较（与周期预算相同的时间窗口）。",
+    "category_cost" => "按分类费用",
+    "dashboard_widgets" => "仪表盘小组件",
+    "dashboard_widgets_info" => "选择仪表盘上显示的区块。默认全部启用。",
+
     "budget_period" => "预算周期",
     "budget_anchor_date" => "起始日期",
     "fortnightly" => "每两周",

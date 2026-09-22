@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Le budget mensuel est comparé au coût total mensuel de vos abonnements.",
     "period_budget" => "Budget de la période",
     "period_budget_info" => "Le budget de la période suit ce que vous devez payer pendant la période de budget choisie.",
+    "payment_method_budget" => "Budget par moyen de paiement",
+    "payment_method_budget_info" => "Définissez un budget par moyen de paiement. Le tableau de bord le compare au montant nécessaire dans la période budgétaire en cours (même fenêtre que le budget périodique).",
+    "category_cost" => "Coût par catégorie",
+    "dashboard_widgets" => "Widgets du tableau de bord",
+    "dashboard_widgets_info" => "Choisissez les sections affichées sur le tableau de bord. Tous les widgets sont activés par défaut.",
+
     "budget_period" => "Période de budget",
     "budget_anchor_date" => "Date de référence",
     "fortnightly" => "Quinzaine",

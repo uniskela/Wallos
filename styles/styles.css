@@ -1267,6 +1267,20 @@ header #avatar {
   color: var(--text-color);
 }
 
+.payment-method-budget-name {
+  margin: 12px 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.payment-method-budgets .payment-method-budget-row {
+  margin-bottom: 8px;
+}
+
+.payment-method-budgets .payment-method-budget-row label {
+  min-width: 140px;
+}
+
 .credits-list {
   display: flex;
   flex-direction: column;

@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "A havi költségvetést az előfizetések teljes havi költségével hasonlítja össze.",
     "period_budget" => "Időszaki költségvetés",
     "period_budget_info" => "Az időszaki költségvetés nyomon követi, mennyit kell fizetnie a kiválasztott költségvetési időszakban.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Költségvetési időszak",
     "budget_anchor_date" => "Kezdő dátum",
     "fortnightly" => "Két hetente",

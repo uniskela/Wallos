@@ -190,6 +190,12 @@ $i18n = [
     "monthly_budget_info" => "Aylık bütçe, toplam aylık abonelik maliyetinizle karşılaştırılır.",
     "period_budget" => "Dönem Bütçesi",
     "period_budget_info" => "Dönem bütçesi, seçtiğiniz bütçe döneminde ödemeniz gerekeni takip eder.",
+    "payment_method_budget" => "Payment Method Budget",
+    "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
+    "category_cost" => "Cost by Category",
+    "dashboard_widgets" => "Dashboard widgets",
+    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+
     "budget_period" => "Bütçe dönemi",
     "budget_anchor_date" => "Referans tarih",
     "fortnightly" => "İki Haftalık",

@@ -1096,6 +1096,58 @@ function setShowSubscriptionProgress() {
   storeSettingsOnDB('subscription_progress', value);
 }
 
+function setDashboardWidgetVisibility(checkbox) {
+  const widgetId = checkbox.getAttribute('data-widget-id');
+  const enabled = checkbox.checked;
+
+  fetch('endpoints/settings/dashboard_widget.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify({ widget_id: widgetId, enabled: enabled })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+    });
+}
+
+function savePaymentMethodBudget(paymentMethodId) {
+  const input = document.getElementById('payment_method_budget_' + paymentMethodId);
+  if (!input) {
+    return;
+  }
+
+  const budget = Number(input.value || 0);
+  if (Number.isNaN(budget) || budget < 0) {
+    showErrorMessage(translate('invalid_budget'));
+    return;
+  }
+
+  fetch('endpoints/payments/budget.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify({ payment_method_id: paymentMethodId, budget: budget })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+    });
+}
+
 function loadApiUsage(endpoint, containerId, countId, fillId) {
   const usageContainer = document.getElementById(containerId);
   if (!usageContainer) {
