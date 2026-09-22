@@ -124,11 +124,15 @@ foreach ($dashboardWidgetLayout as $entry) {
                         $mid = (int) $method['id'];
                         // Empty configured list means "all with budgets" — leave none checked.
                         $checked = !empty($configuredMethodIds) && in_array($mid, $configuredMethodIds, true);
+                        $inputId = 'pmb_' . htmlspecialchars($instanceId, ENT_QUOTES, 'UTF-8') . '_' . $mid;
                         ?>
-                        <label class="form-group-inline pmb-method-option">
-                            <input type="checkbox" value="<?= $mid ?>" <?= $checked ? 'checked' : '' ?>>
-                            <span><?= htmlspecialchars($method['name'], ENT_QUOTES, 'UTF-8') ?></span>
-                        </label>
+                        <div class="form-group-inline pmb-method-option">
+                            <input type="checkbox"
+                                   id="<?= $inputId ?>"
+                                   value="<?= $mid ?>"
+                                   <?= $checked ? 'checked' : '' ?>>
+                            <label for="<?= $inputId ?>"><?= htmlspecialchars($method['name'], ENT_QUOTES, 'UTF-8') ?></label>
+                        </div>
                     <?php } ?>
                 </div>
                 <p class="settings-notes"><i class="fa-solid fa-circle-info"></i> <?= translate('payment_method_budget_select_info', $i18n) ?></p>

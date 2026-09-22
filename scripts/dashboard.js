@@ -169,10 +169,11 @@ function initDashboardWidgetEditor() {
     widget.setAttribute("data-title", "");
 
     const methodChecks = methods.map(function (method) {
-      return '<label class="form-group-inline pmb-method-option">'
-        + '<input type="checkbox" value="' + method.id + '">'
-        + '<span>' + escapeHtml(method.name) + '</span>'
-        + '</label>';
+      const inputId = "pmb_" + instanceId + "_" + method.id;
+      return '<div class="form-group-inline pmb-method-option">'
+        + '<input type="checkbox" id="' + escapeAttr(inputId) + '" value="' + method.id + '">'
+        + '<label for="' + escapeAttr(inputId) + '">' + escapeHtml(method.name) + '</label>'
+        + '</div>';
     }).join("");
 
     widget.innerHTML = ''

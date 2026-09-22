@@ -1400,6 +1400,9 @@ header #avatar {
   flex-direction: column;
   gap: 6px;
   margin: 6px 0;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .pmb-method-option {
@@ -1407,6 +1410,11 @@ header #avatar {
   align-items: center;
   gap: 8px;
   margin: 0;
+  position: relative;
+}
+
+.pmb-method-option label {
+  margin-bottom: 0;
 }
 
 .dashboard-add-pmb {

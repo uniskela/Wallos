@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'static-cache-v8';
-const PAGES_CACHE = 'pages-cache-v1';
+const STATIC_CACHE = 'static-cache-v9';
+const PAGES_CACHE = 'pages-cache-v2';
 const LOGOS_CACHE = 'logos-cache-v2';
 
 // manifest.php is intentionally not precached here: it's per-user (theme
