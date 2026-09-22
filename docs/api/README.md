@@ -17,8 +17,8 @@ Runtime calls always go to **your Wallos instance**, not api.wallosapp.com.
 | [widgets/list_widgets.yaml](widgets/list_widgets.yaml) | `GET/POST /api/widgets/list_widgets.php` |
 | [widgets/get_widget.yaml](widgets/get_widget.yaml) | `GET/POST /api/widgets/get_widget.php` |
 
-See also:
+Quick smoke test against a running instance:
 
-- [Home Assistant REST examples](../homeassistant/rest-sensors.md)
-- [HACS integration plan](../plans/hacs-wallos-integration.md)
-- [smoke-widgets.sh](smoke-widgets.sh) — quick curl against a running instance
+```bash
+BASE=http://localhost:8282 KEY=your-api-key ./docs/api/smoke-widgets.sh
+```
