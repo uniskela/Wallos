@@ -194,7 +194,15 @@ $i18n = [
     "payment_method_budget_info" => "Ustaw budżet dla każdej metody płatności. Pulpit porównuje go z kwotą potrzebną w bieżącym okresie budżetowym (to samo okno co budżet okresowy).",
     "category_cost" => "Koszt według kategorii",
     "dashboard_widgets" => "Widżety pulpitu",
-    "dashboard_widgets_info" => "Wybierz, które sekcje mają być widoczne na pulpicie. Domyślnie wszystkie widżety są włączone.",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "Okres budżetowy",
     "budget_anchor_date" => "Data odniesienia",

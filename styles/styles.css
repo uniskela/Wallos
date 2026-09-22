@@ -1281,6 +1281,109 @@ header #avatar {
   min-width: 140px;
 }
 
+.dashboard-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dashboard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.dashboard-toolbar .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-edit-hint {
+  margin: 0;
+  opacity: 0.8;
+  font-size: 0.95rem;
+}
+
+.dashboard-widgets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-widget-chrome {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background-color: rgba(var(--accent-color-rgb), 0.12);
+}
+
+.dashboard-widget-chrome-title {
+  font-weight: 600;
+}
+
+.dashboard-widget-empty {
+  margin: 0;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Normal view: hide disabled or empty (except upcoming which always has content flag) */
+.dashboard:not(.editing-widgets) .dashboard-widget[data-enabled="0"],
+.dashboard:not(.editing-widgets) .dashboard-widget[data-has-content="0"] {
+  display: none;
+}
+
+.dashboard.editing-widgets .dashboard-widget {
+  display: block;
+  padding: 8px;
+  border: 1px dashed rgba(var(--accent-color-rgb), 0.45);
+  border-radius: 10px;
+  background-color: transparent;
+}
+
+.dashboard.editing-widgets .dashboard-widget[data-enabled="0"] {
+  opacity: 0.55;
+}
+
+.dashboard.editing-widgets .dashboard-widget-chrome {
+  display: flex;
+}
+
+.dashboard.editing-widgets .dashboard-widget-body > .overdue-subscriptions > h2,
+.dashboard.editing-widgets .dashboard-widget-body > .upcoming-subscriptions > h2,
+.dashboard.editing-widgets .dashboard-widget-body > .ai-recommendations > h2,
+.dashboard.editing-widgets .dashboard-widget-body > .budget-subscriptions > h2,
+.dashboard.editing-widgets .dashboard-widget-body > .current-subscriptions > h2,
+.dashboard.editing-widgets .dashboard-widget-body > .savings-subscriptions > h2 {
+  /* Chrome already shows the title while editing */
+  display: none;
+}
+
+.dashboard.editing-widgets .dashboard-widgets-list .sortable-ghost {
+  border-radius: 8px;
+  background-color: rgba(var(--accent-color-rgb), 0.6);
+  border: 1px solid var(--accent-color);
+}
+
+@media (max-width: 768px) {
+  .dashboard-toolbar {
+    width: 100%;
+  }
+
+  .dashboard-toolbar .button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
 .credits-list {
   display: flex;
   flex-direction: column;

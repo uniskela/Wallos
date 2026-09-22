@@ -194,7 +194,15 @@ $i18n = [
     "payment_method_budget_info" => "Defina um orçamento por método de pagamento. O painel compara-o com o valor necessário no período orçamental atual (mesma janela do orçamento periódico).",
     "category_cost" => "Custo por categoria",
     "dashboard_widgets" => "Widgets do painel",
-    "dashboard_widgets_info" => "Escolha quais secções aparecem no painel. Todos os widgets estão ativos por predefinição.",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "Período de orçamento",
     "budget_anchor_date" => "Data de referência",

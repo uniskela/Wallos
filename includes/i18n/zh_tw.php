@@ -194,7 +194,15 @@ $i18n = [
     "payment_method_budget_info" => "為每種付款方式設定預算。儀表板會將其與目前預算週期所需金額比較（與週期預算相同的時間窗口）。",
     "category_cost" => "依分類費用",
     "dashboard_widgets" => "儀表板小工具",
-    "dashboard_widgets_info" => "選擇儀表板上顯示的區塊。預設全部啟用。",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "預算週期",
     "budget_anchor_date" => "起始日期",

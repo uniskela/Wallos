@@ -28,6 +28,122 @@ if (!function_exists('wallos_widget_ids')) {
     }
 }
 
+if (!function_exists('wallos_default_dashboard_widget_layout')) {
+    /**
+     * Default stack: all widgets enabled in stable public order.
+     *
+     * @return array<int, array{widget_id: string, enabled: bool}>
+     */
+    function wallos_default_dashboard_widget_layout()
+    {
+        $layout = [];
+        foreach (wallos_widget_ids() as $widgetId) {
+            $layout[] = [
+                'widget_id' => $widgetId,
+                'enabled' => true,
+            ];
+        }
+
+        return $layout;
+    }
+}
+
+if (!function_exists('wallos_normalize_dashboard_widget_layout_input')) {
+    /**
+     * Validate and normalize a client-submitted layout.
+     * Returns null when invalid.
+     *
+     * @param mixed $widgets
+     * @return array<int, array{widget_id: string, enabled: bool}>|null
+     */
+    function wallos_normalize_dashboard_widget_layout_input($widgets)
+    {
+        if (!is_array($widgets) || count($widgets) === 0) {
+            return null;
+        }
+
+        $allowed = wallos_widget_ids();
+        $seen = [];
+        $normalized = [];
+
+        foreach ($widgets as $entry) {
+            if (!is_array($entry)) {
+                return null;
+            }
+            $widgetId = $entry['widget_id'] ?? null;
+            if (!is_string($widgetId) || !in_array($widgetId, $allowed, true)) {
+                return null;
+            }
+            if (isset($seen[$widgetId])) {
+                return null;
+            }
+            $seen[$widgetId] = true;
+
+            $enabled = $entry['enabled'] ?? true;
+            $enabledBool = ($enabled === true || $enabled === 1 || $enabled === '1');
+
+            $normalized[] = [
+                'widget_id' => $widgetId,
+                'enabled' => $enabledBool,
+            ];
+        }
+
+        // Append any missing known widgets (defaults ON) so upgrades stay complete.
+        foreach ($allowed as $widgetId) {
+            if (!isset($seen[$widgetId])) {
+                $normalized[] = [
+                    'widget_id' => $widgetId,
+                    'enabled' => true,
+                ];
+            }
+        }
+
+        return $normalized;
+    }
+}
+
+if (!function_exists('wallos_get_dashboard_widget_layout')) {
+    /**
+     * Resolve layout from JSON column, falling back to legacy boolean columns.
+     *
+     * @return array<int, array{widget_id: string, enabled: bool}>
+     */
+    function wallos_get_dashboard_widget_layout(array $settings)
+    {
+        $raw = $settings['dashboard_widget_layout'] ?? null;
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            $normalized = wallos_normalize_dashboard_widget_layout_input($decoded);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        // Legacy: boolean columns in default order.
+        $layout = [];
+        foreach (wallos_widget_ids() as $widgetId) {
+            $layout[] = [
+                'widget_id' => $widgetId,
+                'enabled' => wallos_is_widget_enabled_legacy($settings, $widgetId),
+            ];
+        }
+
+        return $layout;
+    }
+}
+
+if (!function_exists('wallos_is_widget_enabled_legacy')) {
+    function wallos_is_widget_enabled_legacy(array $settings, $widgetId)
+    {
+        $column = wallos_widget_setting_column($widgetId);
+        if (!array_key_exists($column, $settings) || $settings[$column] === null) {
+            return true;
+        }
+
+        return (int) $settings[$column] === 1 || $settings[$column] === true || $settings[$column] === '1';
+    }
+}
+
 if (!function_exists('wallos_widget_setting_column')) {
     function wallos_widget_setting_column($widgetId)
     {
@@ -37,16 +153,17 @@ if (!function_exists('wallos_widget_setting_column')) {
 
 if (!function_exists('wallos_is_widget_enabled')) {
     /**
-     * Visibility defaults to ON when the flag is missing (pre-migration / unset).
+     * Visibility from JSON layout (preferred) or legacy boolean columns.
      */
     function wallos_is_widget_enabled(array $settings, $widgetId)
     {
-        $column = wallos_widget_setting_column($widgetId);
-        if (!array_key_exists($column, $settings) || $settings[$column] === null) {
-            return true;
+        foreach (wallos_get_dashboard_widget_layout($settings) as $entry) {
+            if ($entry['widget_id'] === $widgetId) {
+                return $entry['enabled'];
+            }
         }
 
-        return (int) $settings[$column] === 1 || $settings[$column] === true || $settings[$column] === '1';
+        return true;
     }
 }
 
@@ -253,18 +370,20 @@ if (!function_exists('wallos_build_category_cost_rows')) {
 
 if (!function_exists('wallos_list_widgets_catalog')) {
     /**
-     * Catalog payload for list_widgets API / settings UI.
+     * Catalog payload for list_widgets API.
      *
      * @return array
      */
     function wallos_list_widgets_catalog(array $settings, array $i18n)
     {
         $widgets = [];
-        foreach (wallos_widget_ids() as $widgetId) {
+        foreach (wallos_get_dashboard_widget_layout($settings) as $order => $entry) {
+            $widgetId = $entry['widget_id'];
             $titleKey = wallos_widget_title_key($widgetId);
             $widgets[] = [
                 'widget_id' => $widgetId,
-                'enabled' => wallos_is_widget_enabled($settings, $widgetId),
+                'enabled' => $entry['enabled'],
+                'order' => (int) $order,
                 'title' => function_exists('translate')
                     ? translate($titleKey, $i18n)
                     : ($i18n[$titleKey] ?? $widgetId),

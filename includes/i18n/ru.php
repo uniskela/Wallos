@@ -190,7 +190,15 @@ $i18n = [
     "payment_method_budget_info" => "Задайте бюджет для каждого способа оплаты. На панели он сравнивается с необходимой суммой в текущем бюджетном периоде (то же окно, что и у периодического бюджета).",
     "category_cost" => "Расходы по категориям",
     "dashboard_widgets" => "Виджеты панели",
-    "dashboard_widgets_info" => "Выберите, какие разделы показывать на панели. По умолчанию все виджеты включены.",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "Бюджетный период",
     "budget_anchor_date" => "Дата отсчёта",

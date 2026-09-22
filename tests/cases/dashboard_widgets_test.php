@@ -10,7 +10,7 @@ wallos_test('widget visibility defaults to enabled when unset', function () {
     assert_true(!wallos_is_widget_enabled(['dashboard_widget_upcoming' => 0], 'upcoming'), 'explicit 0 disables');
 });
 
-wallos_test('widget catalog includes schema_version and all widget ids', function () {
+wallos_test('widget catalog includes schema_version order and all widget ids', function () {
     $catalog = wallos_list_widgets_catalog([], [
         'overdue_renewals' => 'Overdue',
         'upcoming_payments' => 'Upcoming',
@@ -30,10 +30,56 @@ wallos_test('widget catalog includes schema_version and all widget ids', functio
     $ids = array_column($catalog['widgets'], 'widget_id');
     assert_same(wallos_widget_ids(), $ids, 'stable dashboard order');
 
-    foreach ($catalog['widgets'] as $widget) {
+    foreach ($catalog['widgets'] as $index => $widget) {
         assert_true($widget['enabled'] === true, $widget['widget_id'] . ' defaults enabled');
         assert_true($widget['requires_params'] === false, $widget['widget_id'] . ' has no required params');
+        assert_same($index, $widget['order'], $widget['widget_id'] . ' has order index');
     }
+});
+
+wallos_test('dashboard widget layout JSON overrides order and enabled flags', function () {
+    $layout = [
+        ['widget_id' => 'savings', 'enabled' => true],
+        ['widget_id' => 'upcoming', 'enabled' => false],
+    ];
+    $settings = [
+        'dashboard_widget_layout' => json_encode($layout),
+    ];
+    $resolved = wallos_get_dashboard_widget_layout($settings);
+    assert_same('savings', $resolved[0]['widget_id'], 'custom order first');
+    assert_same('upcoming', $resolved[1]['widget_id'], 'custom order second');
+    assert_true($resolved[0]['enabled'] === true, 'savings enabled');
+    assert_true($resolved[1]['enabled'] === false, 'upcoming disabled');
+    assert_true(wallos_is_widget_enabled($settings, 'savings'), 'enabled via layout');
+    assert_true(!wallos_is_widget_enabled($settings, 'upcoming'), 'disabled via layout');
+    // Missing ids filled in at the end
+    assert_same(count(wallos_widget_ids()), count($resolved), 'all widgets present');
+
+    $catalog = wallos_list_widgets_catalog($settings, [
+        'overdue_renewals' => 'Overdue',
+        'upcoming_payments' => 'Upcoming',
+        'ai_recommendations' => 'AI',
+        'monthly_budget' => 'Monthly',
+        'period_budget' => 'Period',
+        'payment_method_budget' => 'Method',
+        'your_subscriptions' => 'Subs',
+        'your_savings' => 'Savings',
+        'category_cost' => 'Categories',
+    ]);
+    assert_same('savings', $catalog['widgets'][0]['widget_id'], 'catalog respects order');
+    assert_same(0, $catalog['widgets'][0]['order'], 'order field');
+    assert_true($catalog['widgets'][1]['enabled'] === false, 'catalog enabled flag');
+});
+
+wallos_test('layout input rejects unknown or duplicate widget ids', function () {
+    assert_same(null, wallos_normalize_dashboard_widget_layout_input([]), 'empty rejected');
+    assert_same(null, wallos_normalize_dashboard_widget_layout_input([
+        ['widget_id' => 'not_a_widget', 'enabled' => true],
+    ]), 'unknown id rejected');
+    assert_same(null, wallos_normalize_dashboard_widget_layout_input([
+        ['widget_id' => 'upcoming', 'enabled' => true],
+        ['widget_id' => 'upcoming', 'enabled' => false],
+    ]), 'duplicates rejected');
 });
 
 wallos_test('payment method id filter parsing', function () {
@@ -57,7 +103,7 @@ wallos_test('category cost rows are top-N by monthly cost', function () {
     assert_same('D', $rows[1]['name'], 'second highest');
 });
 
-wallos_test('migration adds payment method budget and widget flags', function () {
+wallos_test('migration adds payment method budget, widget flags, and layout column', function () {
     $db = wallos_test_open_database();
 
     $budgetCol = $db->query("SELECT * FROM pragma_table_info('payment_methods') WHERE name='budget'");
@@ -68,6 +114,9 @@ wallos_test('migration adds payment method budget and widget flags', function ()
         $col = $db->query("SELECT * FROM pragma_table_info('settings') WHERE name='" . $column . "'");
         assert_true($col->fetchArray(SQLITE3_ASSOC) !== false, $column . ' exists');
     }
+
+    $layoutCol = $db->query("SELECT * FROM pragma_table_info('settings') WHERE name='dashboard_widget_layout'");
+    assert_true($layoutCol->fetchArray(SQLITE3_ASSOC) !== false, 'dashboard_widget_layout exists');
 
     $db->close();
 });

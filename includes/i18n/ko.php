@@ -217,7 +217,15 @@ $i18n = [
     "payment_method_budget_info" => "결제 수단별로 예산을 설정합니다. 대시보드는 현재 예산 기간에 필요한 금액과 비교합니다(기간 예산과 동일한 구간).",
     "category_cost" => "카테고리별 비용",
     "dashboard_widgets" => "대시보드 위젯",
-    "dashboard_widgets_info" => "대시보드에 표시할 섹션을 선택합니다. 기본적으로 모든 위젯이 켜져 있습니다.",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "예산 기간",
     "budget_anchor_date" => "기준일",

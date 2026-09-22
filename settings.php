@@ -1788,41 +1788,6 @@ $upcomingPaymentsLimit = normalize_upcoming_payments_limit($settings['upcoming_p
                     <label for="hidedisabled"><?= translate('hide_disabled_subscriptions', $i18n) ?></label>
                 </div>
             </div>
-            <h3><?= translate('dashboard_widgets', $i18n) ?></h3>
-            <div class="settings-notes">
-                <p>
-                    <i class="fa-solid fa-circle-info"></i> <?= translate('dashboard_widgets_info', $i18n) ?>
-                </p>
-            </div>
-            <?php
-            require_once 'includes/widgets.php';
-            $widgetLabels = [
-                'overdue' => 'overdue_renewals',
-                'upcoming' => 'upcoming_payments',
-                'ai' => 'ai_recommendations',
-                'monthly_budget' => 'monthly_budget',
-                'period_budget' => 'period_budget',
-                'payment_method_budget' => 'payment_method_budget',
-                'subscriptions' => 'your_subscriptions',
-                'savings' => 'your_savings',
-                'category_cost' => 'category_cost',
-            ];
-            foreach ($widgetLabels as $widgetId => $labelKey) {
-                $column = wallos_widget_setting_column($widgetId);
-                $checked = wallos_is_widget_enabled($settings, $widgetId);
-                $inputId = 'dashboardwidget_' . $widgetId;
-                ?>
-                <div>
-                    <div class="form-group-inline">
-                        <input type="checkbox" id="<?= $inputId ?>" name="<?= $inputId ?>"
-                            data-widget-id="<?= htmlspecialchars($widgetId, ENT_QUOTES, 'UTF-8') ?>"
-                            onChange="setDashboardWidgetVisibility(this)" <?= $checked ? 'checked' : '' ?>>
-                        <label for="<?= $inputId ?>"><?= translate($labelKey, $i18n) ?></label>
-                    </div>
-                </div>
-                <?php
-            }
-            ?>
         </div>
     </section>
 

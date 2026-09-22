@@ -194,7 +194,15 @@ $i18n = [
     "payment_method_budget_info" => "Set a budget per payment method. The dashboard compares it to amount needed in the current budget period (same window as Period Budget).",
     "category_cost" => "Cost by Category",
     "dashboard_widgets" => "Dashboard widgets",
-    "dashboard_widgets_info" => "Choose which sections appear on the dashboard. All widgets are shown by default.",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "Период буџета",
     "budget_anchor_date" => "Референтни датум",

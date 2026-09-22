@@ -1096,28 +1096,6 @@ function setShowSubscriptionProgress() {
   storeSettingsOnDB('subscription_progress', value);
 }
 
-function setDashboardWidgetVisibility(checkbox) {
-  const widgetId = checkbox.getAttribute('data-widget-id');
-  const enabled = checkbox.checked;
-
-  fetch('endpoints/settings/dashboard_widget.php', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': window.csrfToken,
-    },
-    body: JSON.stringify({ widget_id: widgetId, enabled: enabled })
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showSuccessMessage(data.message);
-      } else {
-        showErrorMessage(data.message);
-      }
-    });
-}
-
 function savePaymentMethodBudget(paymentMethodId) {
   const input = document.getElementById('payment_method_budget_' + paymentMethodId);
   if (!input) {

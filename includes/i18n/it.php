@@ -201,7 +201,15 @@ $i18n = [
     "payment_method_budget_info" => "Imposta un budget per metodo di pagamento. La dashboard lo confronta con l'importo necessario nel periodo di budget corrente (stessa finestra del budget periodico).",
     "category_cost" => "Costo per categoria",
     "dashboard_widgets" => "Widget della dashboard",
-    "dashboard_widgets_info" => "Scegli quali sezioni mostrare nella dashboard. Tutti i widget sono attivi per impostazione predefinita.",
+    "dashboard_widgets_info" => "Customize widgets on the dashboard with Edit widgets (drag to reorder, show or hide).",
+
+    "edit_widgets" => "Edit widgets",
+    "done_editing_widgets" => "Done",
+    "edit_widgets_hint" => "Drag to reorder. Use the eye icon to show or hide a widget.",
+    "reorder_widget" => "Drag to reorder",
+    "show_widget" => "Show widget",
+    "hide_widget" => "Hide widget",
+    "widget_no_data" => "Nothing to show yet",
 
     "budget_period" => "Periodo di budget",
     "budget_anchor_date" => "Data di ancoraggio",

@@ -194,7 +194,15 @@ $i18n = [
     "payment_method_budget_info" => "Lege ein Budget pro Zahlungsmethode fest. Das Dashboard vergleicht es mit dem benötigten Betrag im aktuellen Budgetzeitraum (gleiches Fenster wie Periodenbudget).",
     "category_cost" => "Kosten nach Kategorie",
     "dashboard_widgets" => "Dashboard-Widgets",
-    "dashboard_widgets_info" => "Wähle, welche Abschnitte auf dem Dashboard erscheinen. Standardmäßig sind alle Widgets aktiv.",
+    "dashboard_widgets_info" => "Widgets auf dem Dashboard mit „Widgets bearbeiten“ anpassen (ziehen zum Neuordnen, ein-/ausblenden).",
+
+    "edit_widgets" => "Widgets bearbeiten",
+    "done_editing_widgets" => "Fertig",
+    "edit_widgets_hint" => "Zum Neuordnen ziehen. Mit dem Augen-Symbol Widgets ein- oder ausblenden.",
+    "reorder_widget" => "Ziehen zum Neuordnen",
+    "show_widget" => "Widget anzeigen",
+    "hide_widget" => "Widget ausblenden",
+    "widget_no_data" => "Noch nichts anzuzeigen",
 
     "budget_period" => "Budgetzeitraum",
     "budget_anchor_date" => "Ankerdatum",
