@@ -1,12 +1,16 @@
-const STATIC_CACHE = 'static-cache-v1';
-const PAGES_CACHE = 'pages-cache-v1';
-const LOGOS_CACHE = 'logos-cache-v1';
+const STATIC_CACHE = 'static-cache-v10';
+const PAGES_CACHE = 'pages-cache-v3';
+const LOGOS_CACHE = 'logos-cache-v2';
 
+// manifest.php is intentionally not precached here: it's per-user (theme
+// cookie dependent), so it falls through to the network-first handler below
+// instead of being served stale from a cache-first bucket forever.
 const staticAssets = [
-    'manifest.json',
     'styles/styles.css',
+    'styles/theme.css',
     'styles/dark-theme.css',
     'styles/login.css',
+    'styles/login-dark-theme.css',
     'styles/font-awesome.min.css',
     'styles/brands.css',
     'styles/barlow.css',
@@ -20,17 +24,25 @@ const staticAssets = [
     'webfonts/fa-brands-400.ttf',
     'webfonts/fa-regular-400.woff2',
     'webfonts/fa-regular-400.ttf',
+    'scripts/all.js',
     'scripts/common.js',
     'scripts/dashboard.js',
     'scripts/subscriptions.js',
+    'scripts/subscription-details.js',
+    'scripts/password-toggle.js',
     'scripts/stats.js',
     'scripts/settings.js',
+    'scripts/profile.js',
     'scripts/theme.js',
+    'scripts/auth-theme.js',
     'scripts/notifications.js',
     'scripts/registration.js',
     'scripts/login.js',
     'scripts/admin.js',
     'scripts/calendar.js',
+    'scripts/i18n/ar.js',
+    'scripts/i18n/az.js',
+    'scripts/i18n/ca.js',
     'scripts/i18n/cs.js',
     'scripts/i18n/da.js',
     'scripts/i18n/de.js',
@@ -38,9 +50,10 @@ const staticAssets = [
     'scripts/i18n/en.js',
     'scripts/i18n/es.js',
     'scripts/i18n/fr.js',
+    'scripts/i18n/hu.js',
     'scripts/i18n/id.js',
     'scripts/i18n/it.js',
-    'scripts/i18n/jp.js',
+    'scripts/i18n/ja.js',
     'scripts/i18n/ko.js',
     'scripts/i18n/nl.js',
     'scripts/i18n/pl.js',
@@ -57,14 +70,19 @@ const staticAssets = [
     'scripts/i18n/zh_cn.js',
     'scripts/i18n/zh_tw.js',
     'scripts/i18n/getlang.js',
-    'scripts/libs/chart.js',
+    'scripts/libs/apexcharts.min.js',
     'scripts/libs/sortable.min.js',
     'scripts/libs/qrcode.min.js',
     'images/icon/favicon.ico',
+    'images/icon/favicon-16x16.png',
+    'images/icon/favicon-32x32.png',
     'images/icon/android-chrome-192x192.png',
-    'images/icon/apple-touch-icon-180',
-    'images/icon/apple-touch-icon-152',
-    'images/icon/apple-touch-icon',
+    'images/icon/android-chrome-512x512.png',
+    'images/icon/maskable_icon_x192.png',
+    'images/icon/maskable_icon_x512.png',
+    'images/icon/apple-touch-icon-180.png',
+    'images/icon/apple-touch-icon-152.png',
+    'images/icon/apple-touch-icon.png',
     'images/screenshots/desktop.png',
     'images/siteicons/wallos.png',
     'images/siteicons/walloswhite.png',
@@ -81,23 +99,23 @@ const staticAssets = [
     'images/avatars/8.svg',
     'images/avatars/9.svg',
     'images/siteicons/svg/logo.php',
-    'images/siteicons/svg/category.php',
+    'images/siteicons/svg/automatic.php',
+    'images/siteicons/svg/manual.php',
+    'images/siteicons/svg/export_ical.php',
     'images/siteicons/svg/check.php',
-    'images/siteicons/svg/delete.php',
-    'images/siteicons/svg/edit.php',
-    'images/siteicons/svg/notes.php',
-    'images/siteicons/scg/payment.php',
-    'images/siteicons/svg/save.php',
-    'images/siteicons/svg/subscription.php',
-    'images/siteicons/svg/web.php',
-    'images/siteicons/svg/websearch.php',
-    'images/siteicons/svg/clone.php',
     'images/siteicons/svg/mobile-menu/calendar.php',
     'images/siteicons/svg/mobile-menu/home.php',
     'images/siteicons/svg/mobile-menu/profile.php',
     'images/siteicons/svg/mobile-menu/settings.php',
     'images/siteicons/svg/mobile-menu/statistics.php',
     'images/siteicons/svg/mobile-menu/subscriptions.php',
+    'images/siteicons/svg/mobile-menu/about.php',
+    'images/siteicons/svg/mobile-menu/admin.php',
+    'images/siteicons/svg/mobile-menu/logout.php',
+    'images/siteicons/svg/mobile-menu/clone.php',
+    'images/siteicons/svg/mobile-menu/delete.php',
+    'images/siteicons/svg/mobile-menu/edit.php',
+    'images/siteicons/svg/mobile-menu/renew.php',
     'images/siteicons/pwa/stats.png',
     'images/siteicons/pwa/settings.png',
     'images/siteicons/pwa/about.png',
@@ -149,17 +167,23 @@ const pagesToPrefetch = [
     'admin.php',
 ];
 
-// Install: cache static assets only
+// Install: cache static assets in small batches. Firing all ~150 fetches at
+// once starves large files (apexcharts is 600KB) of connections on HTTP/1.1
+// origins, and a dropped one is silently skipped - see the static-asset
+// fetch handler, which backfills anything that slips through here.
 self.addEventListener('install', function (event) {
     event.waitUntil(
-        caches.open(STATIC_CACHE).then(function (cache) {
-            return Promise.allSettled(
-                staticAssets.map(url =>
-                    fetch(url).then(response => {
-                        if (response.ok) cache.put(url, response);
-                    }).catch(() => {}) // silently skip missing files
-                )
-            );
+        caches.open(STATIC_CACHE).then(async function (cache) {
+            const BATCH_SIZE = 12;
+            for (let i = 0; i < staticAssets.length; i += BATCH_SIZE) {
+                await Promise.allSettled(
+                    staticAssets.slice(i, i + BATCH_SIZE).map(url =>
+                        fetch(url).then(response => {
+                            if (response.ok) return cache.put(url, response);
+                        }).catch(() => {}) // silently skip missing files
+                    )
+                );
+            }
         })
     );
     self.skipWaiting();
@@ -203,25 +227,57 @@ self.addEventListener('fetch', function (event) {
     // Never intercept non-GET requests (POST, etc.)
     if (request.method !== 'GET') return;
 
-    // Logo images: cache-first, populate on first load
+    // Search endpoints must always return their current JSON response. Falling
+    // back to a cached PHP page (especially with ignoreSearch) makes the client
+    // try to parse HTML or another query's data as JSON.
+    if (url.pathname.includes('/endpoints/logos/')) {
+        event.respondWith(fetch(request));
+        return;
+    }
+
+    // Logo images: use cache-first, but cache only successful image responses.
+    // This prevents temporary 404/HTML responses from becoming permanent
+    // broken images. Bumping LOGOS_CACHE removes previously poisoned entries.
     if (url.pathname.includes('images/uploads/logos')) {
         event.respondWith(
             caches.match(request).then(response => {
                 return response || fetch(request).then(networkResponse => {
-                    return caches.open(LOGOS_CACHE).then(cache => {
-                        cache.put(request, networkResponse.clone());
-                        return networkResponse;
-                    });
+                    const contentType = networkResponse.headers.get('content-type') || '';
+                    if (networkResponse.ok && contentType.startsWith('image/')) {
+                        return caches.open(LOGOS_CACHE).then(cache => {
+                            cache.put(request, networkResponse.clone());
+                            return networkResponse;
+                        });
+                    }
+                    return networkResponse;
                 });
             })
         );
         return;
     }
 
-    // Static assets: cache-first (they only change on deploy)
+    // Static assets: cache-first (they only change on deploy). ignoreSearch
+    // because the pages request these with a "?<version>" cache-buster, while
+    // they're precached under the bare path - without it every asset misses
+    // the cache and the page renders unstyled offline.
+    //
+    // On a miss, fetch AND store the result: the install step fires ~150
+    // parallel fetches and any that fail (a large file like apexcharts, a
+    // dropped connection) are silently skipped, so without this backfill a
+    // once-missed asset would never get cached and its feature (e.g. the
+    // stats charts) would stay broken offline forever.
     if (staticAssets.some(asset => url.pathname.endsWith(asset))) {
         event.respondWith(
-            caches.match(request).then(response => response || fetch(request))
+            caches.match(request, { ignoreSearch: true }).then(cached => {
+                if (cached) return cached;
+                return fetch(request).then(networkResponse => {
+                    if (networkResponse.ok) {
+                        const clone = networkResponse.clone();
+                        caches.open(STATIC_CACHE).then(cache => cache.put(request, clone));
+                    }
+                    return networkResponse;
+                });
+            })
         );
         return;
     }
@@ -239,6 +295,54 @@ self.addEventListener('fetch', function (event) {
             return response;
         }).catch(() => {
             return caches.match(request, { ignoreSearch: true });
+        })
+    );
+});
+
+// Web Push (RFC 8291/8292): the payload includes/webpush_helper.php sends is
+// {"title": ..., "body": ...} JSON, decrypted by the browser itself before
+// this handler ever sees it - nothing here has to know that aes128gcm
+// happened at all.
+self.addEventListener('push', function (event) {
+    let data = {};
+
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (e) {
+            data = { title: 'Wallos', body: event.data.text() };
+        }
+    }
+
+    const title = data.title || 'Wallos';
+    const options = {
+        body: data.body || '',
+        icon: 'images/icon/android-chrome-192x192.png',
+        badge: 'images/icon/android-chrome-192x192.png',
+        data: { url: data.url || './' },
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', function (event) {
+    event.notification.close();
+
+    const targetUrl = (event.notification.data && event.notification.data.url) || './';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {
+            // Focus a tab that already has the app open, rather than piling
+            // up a new one every time a notification is tapped.
+            for (const client of windowClients) {
+                if (client.url.includes(self.registration.scope) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
         })
     );
 });

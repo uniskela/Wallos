@@ -10,6 +10,8 @@ require_once 'includes/i18n/getlang.php';
 require_once 'includes/i18n/' . $lang . '.php';
 
 require_once 'includes/version.php';
+require_once 'includes/theme_helpers.php';
+require_once 'includes/default_names.php';
 
 function validate($value)
 {
@@ -35,7 +37,9 @@ $userCount = $userCountResult['userCount'];
 if ($userCount == 0) {
     $setupTokenFile = __DIR__ . '/db/setup_token.db';
     if (!file_exists($setupTokenFile)) {
-        file_put_contents($setupTokenFile, bin2hex(random_bytes(32)));
+        $setupToken = bin2hex(random_bytes(32));
+        file_put_contents($setupTokenFile, $setupToken);
+        error_log("Setup token for database restore: " . $setupToken);
     }
 }
 
@@ -62,14 +66,14 @@ if ($userCount > 0) {
 $theme = "light";
 $updateThemeSettings = false;
 if (isset($_COOKIE['theme'])) {
-    $theme = $_COOKIE['theme'];
+    $theme = sanitize_theme_mode($_COOKIE['theme']);
 } else {
     $updateThemeSettings = true;
 }
 
 $colorTheme = "blue";
 if (isset($_COOKIE['colorTheme'])) {
-    $colorTheme = $_COOKIE['colorTheme'];
+    $colorTheme = sanitize_color_theme($_COOKIE['colorTheme']);
 }
 
 $currencies = [
@@ -107,60 +111,6 @@ $currencies = [
     ['id' => 32, 'name' => 'South African Rand', 'symbol' => 'R', 'code' => 'ZAR'],
     ['id' => 33, 'name' => 'Ukrainian Hryvnia', 'symbol' => '₴', 'code' => 'UAH'],
     ['id' => 34, 'name' => 'New Taiwan Dollar', 'symbol' => 'NT$', 'code' => 'TWD'],
-];
-
-$categories = [
-    ['id' => 1, 'name' => 'No category'],
-    ['id' => 2, 'name' => 'Entertainment'],
-    ['id' => 3, 'name' => 'Music'],
-    ['id' => 4, 'name' => 'Utilities'],
-    ['id' => 5, 'name' => 'Food & Beverages'],
-    ['id' => 6, 'name' => 'Health & Wellbeing'],
-    ['id' => 7, 'name' => 'Productivity'],
-    ['id' => 8, 'name' => 'Banking'],
-    ['id' => 9, 'name' => 'Transport'],
-    ['id' => 10, 'name' => 'Education'],
-    ['id' => 11, 'name' => 'Insurance'],
-    ['id' => 12, 'name' => 'Gaming'],
-    ['id' => 13, 'name' => 'News & Magazines'],
-    ['id' => 14, 'name' => 'Software'],
-    ['id' => 15, 'name' => 'Technology'],
-    ['id' => 16, 'name' => 'Cloud Services'],
-    ['id' => 17, 'name' => 'Charity & Donations'],
-];
-
-$payment_methods = [
-    ['id' => 1, 'name' => 'PayPal', 'icon' => 'images/uploads/icons/paypal.png'],
-    ['id' => 2, 'name' => 'Credit Card', 'icon' => 'images/uploads/icons/creditcard.png'],
-    ['id' => 3, 'name' => 'Bank Transfer', 'icon' => 'images/uploads/icons/banktransfer.png'],
-    ['id' => 4, 'name' => 'Direct Debit', 'icon' => 'images/uploads/icons/directdebit.png'],
-    ['id' => 5, 'name' => 'Money', 'icon' => 'images/uploads/icons/money.png'],
-    ['id' => 6, 'name' => 'Google Pay', 'icon' => 'images/uploads/icons/googlepay.png'],
-    ['id' => 7, 'name' => 'Samsung Pay', 'icon' => 'images/uploads/icons/samsungpay.png'],
-    ['id' => 8, 'name' => 'Apple Pay', 'icon' => 'images/uploads/icons/applepay.png'],
-    ['id' => 9, 'name' => 'Crypto', 'icon' => 'images/uploads/icons/crypto.png'],
-    ['id' => 10, 'name' => 'Klarna', 'icon' => 'images/uploads/icons/klarna.png'],
-    ['id' => 11, 'name' => 'Amazon Pay', 'icon' => 'images/uploads/icons/amazonpay.png'],
-    ['id' => 12, 'name' => 'SEPA', 'icon' => 'images/uploads/icons/sepa.png'],
-    ['id' => 13, 'name' => 'Skrill', 'icon' => 'images/uploads/icons/skrill.png'],
-    ['id' => 14, 'name' => 'Sofort', 'icon' => 'images/uploads/icons/sofort.png'],
-    ['id' => 15, 'name' => 'Stripe', 'icon' => 'images/uploads/icons/stripe.png'],
-    ['id' => 16, 'name' => 'Affirm', 'icon' => 'images/uploads/icons/affirm.png'],
-    ['id' => 17, 'name' => 'AliPay', 'icon' => 'images/uploads/icons/alipay.png'],
-    ['id' => 18, 'name' => 'Elo', 'icon' => 'images/uploads/icons/elo.png'],
-    ['id' => 19, 'name' => 'Facebook Pay', 'icon' => 'images/uploads/icons/facebookpay.png'],
-    ['id' => 20, 'name' => 'GiroPay', 'icon' => 'images/uploads/icons/giropay.png'],
-    ['id' => 21, 'name' => 'iDeal', 'icon' => 'images/uploads/icons/ideal.png'],
-    ['id' => 22, 'name' => 'Union Pay', 'icon' => 'images/uploads/icons/unionpay.png'],
-    ['id' => 23, 'name' => 'Interac', 'icon' => 'images/uploads/icons/interac.png'],
-    ['id' => 24, 'name' => 'WeChat', 'icon' => 'images/uploads/icons/wechat.png'],
-    ['id' => 25, 'name' => 'Paysafe', 'icon' => 'images/uploads/icons/paysafe.png'],
-    ['id' => 26, 'name' => 'Poli', 'icon' => 'images/uploads/icons/poli.png'],
-    ['id' => 27, 'name' => 'Qiwi', 'icon' => 'images/uploads/icons/qiwi.png'],
-    ['id' => 28, 'name' => 'ShopPay', 'icon' => 'images/uploads/icons/shoppay.png'],
-    ['id' => 29, 'name' => 'Venmo', 'icon' => 'images/uploads/icons/venmo.png'],
-    ['id' => 30, 'name' => 'VeriFone', 'icon' => 'images/uploads/icons/verifone.png'],
-    ['id' => 31, 'name' => 'WebMoney', 'icon' => 'images/uploads/icons/webmoney.png'],
 ];
 
 $passwordMismatch = false;
@@ -241,8 +191,8 @@ if (isset($_POST['username'])) {
                 // Add categories for that user
                 $query = 'INSERT INTO categories (name, "order", user_id) VALUES (:name, :order, :user_id)';
                 $stmt = $db->prepare($query);
-                foreach ($categories as $index => $category) {
-                    $stmt->bindValue(':name', $category['name'], SQLITE3_TEXT);
+                foreach (default_categories($language) as $index => $name) {
+                    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
                     $stmt->bindValue(':order', $index + 1, SQLITE3_INTEGER);
                     $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
                     $stmt->execute();
@@ -251,7 +201,7 @@ if (isset($_POST['username'])) {
                 // Add payment methods for that user
                 $query = 'INSERT INTO payment_methods (name, icon, "order", user_id) VALUES (:name, :icon, :order, :user_id)';
                 $stmt = $db->prepare($query);
-                foreach ($payment_methods as $index => $payment_method) {
+                foreach (default_payment_methods($language) as $index => $payment_method) {
                     $stmt->bindValue(':name', $payment_method['name'], SQLITE3_TEXT);
                     $stmt->bindValue(':icon', $payment_method['icon'], SQLITE3_TEXT);
                     $stmt->bindValue(':order', $index + 1, SQLITE3_INTEGER);
@@ -287,8 +237,8 @@ if (isset($_POST['username'])) {
                 $stmt->execute();
 
                 // Add settings for that user
-                $query = "INSERT INTO settings (dark_theme, monthly_price, convert_currency, remove_background, color_theme, hide_disabled, user_id, disabled_to_bottom, show_original_price, mobile_nav) 
-                          VALUES (2, 0, 0, 0, 'blue', 0, :user_id, 0, 0, 0)";
+                $query = "INSERT INTO settings (dark_theme, monthly_price, convert_currency, remove_background, color_theme, hide_disabled, user_id, disabled_to_bottom, show_original_price, mobile_nav, week_starts_sunday) 
+                          VALUES (2, 0, 0, 0, 'blue', 0, :user_id, 0, 0, 0, 0)";
                 $stmt = $db->prepare($query);
                 $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
                 $stmt->execute();
@@ -310,6 +260,13 @@ if (isset($_POST['username'])) {
 
                     $requireValidation = true;
                 }
+            } else {
+                // The first account of an installation adopts the rows
+                // createdatabase.php seeded before anybody had stated a
+                // language, which is why it is not seeded above. This is the
+                // first moment a language is known, so the rows that are
+                // still the English default are renamed into it.
+                localize_default_names($db, $userId, $language);
             }
 
             $db->close();
@@ -327,14 +284,14 @@ if (isset($_POST['username'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="<?= $theme == "light" ? "#FFFFFF" : "#222222" ?>" id="theme-color" />
+    <meta name="theme-color" content="<?= $theme == "light" ? "#FFFFFF" : "#12151C" ?>" id="theme-color" />
     <meta name="apple-mobile-web-app-title" content="Wallos">
     <title>Wallos - Subscription Tracker</title>
     <link rel="icon" type="image/png" href="images/icon/favicon.ico" sizes="16x16">
     <link rel="apple-touch-icon" href="images/icon/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="images/icon/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/icon/apple-touch-icon-180.png">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.php">
     <link rel="stylesheet" href="styles/theme.css?<?= $version ?>">
     <link rel="stylesheet" href="styles/login.css?<?= $version ?>">
     <link rel="stylesheet" href="styles/themes/red.css?<?= $version ?>" id="red-theme" <?= $colorTheme != "red" ? "disabled" : "" ?>>
@@ -346,14 +303,30 @@ if (isset($_POST['username'])) {
     <link rel="stylesheet" href="styles/barlow.css">
     <script type="text/javascript">
         window.update_theme_settings = "<?= $updateThemeSettings ?>";
-        window.colorTheme = "<?= $colorTheme ?>";
+        window.colorTheme = <?= json_encode($colorTheme, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_APOS) ?>;
     </script>
     <script type="text/javascript" src="scripts/registration.js?<?= $version ?>"></script>
+    <script type="text/javascript" src="scripts/auth-theme.js?<?= $version ?>"></script>
+    <script type="text/javascript" src="scripts/password-toggle.js?<?= $version ?>"></script>
 </head>
 
 <body class="<?= $languages[$lang]['dir'] ?>">
-    <div class="content">
-        <section class="container">
+    <button type="button" class="theme-toggle" id="theme-toggle" title="<?= translate('theme', $i18n) ?>"
+        aria-label="<?= translate('theme', $i18n) ?>">
+        <i class="fa-solid <?= $theme == "dark" ? "fa-sun" : "fa-moon" ?>"></i>
+    </button>
+    <div class="content auth-split">
+        <aside class="auth-brand" aria-hidden="true">
+            <div class="auth-brand-logo">
+                <?php include "images/siteicons/svg/logo.php"; ?>
+            </div>
+            <div class="auth-brand-text">
+                <h1><?= translate('auth_tagline', $i18n) ?></h1>
+                <p><?= translate('auth_tagline_sub', $i18n) ?></p>
+            </div>
+            <div class="auth-brand-footer">Wallos &mdash; Subscription Tracker</div>
+        </aside>
+        <section class="container wide">
             <header>
                 <div class="logo-image" title="Wallos - Subscription Tracker">
                     <?php include "images/siteicons/svg/logo.php"; ?>
@@ -362,7 +335,7 @@ if (isset($_POST['username'])) {
                     <?= translate('create_account', $i18n) ?>
                 </p>
             </header>
-            <form action="registration.php" method="post">
+            <form action="registration.php" method="post" class="registration-form">
                 <div class="form-group">
                     <label for="username"><?= translate('username', $i18n) ?>:</label>
                     <input type="text" id="username" name="username" autocomplete="username" required>
@@ -467,8 +440,9 @@ if (isset($_POST['username'])) {
                 <?php
             } else {
                 ?>
-                <div class="separator">
-                    <input id="goToLoginButton" type="button" class="secondary-button" value="<?= translate('login', $i18n) ?>">
+                <div class="login-form-link account-switch">
+                    <span><?= translate('already_have_account', $i18n) ?></span>
+                    <a href="login.php"><?= translate('login', $i18n) ?></a>
                 </div>
                 <?php
             }

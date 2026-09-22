@@ -5,6 +5,8 @@ require_once '../../includes/validate_endpoint.php';
 require_once '../../includes/inputvalidation.php';
 require_once '../../includes/getsettings.php';
 require_once '../../includes/ssrf_helper.php';
+require_once '../../includes/logo_theme_variant.php';
+require_once '../../includes/logo_cleanup.php';
 
 if (!file_exists('../../images/uploads/logos')) {
     mkdir('../../images/uploads/logos', 0777, true);
@@ -77,6 +79,9 @@ function getLogoFromUrl($url, $uploadDir, $name, $settings, $i18n)
                 unset($ch);
                 return ['success' => true, 'filename' => $fileName];
             }
+
+            unset($ch);
+            return ['success' => false, 'message' => translate('error_saving_logo', $i18n)];
         }
 
         $error = curl_error($ch);
@@ -100,47 +105,39 @@ function saveLogo($imageData, $uploadFile, $name, $settings)
         imagepng($image, $tempFile);
         imagedestroy($image);
 
-        if (extension_loaded('imagick')) {
-            $imagick = new Imagick($tempFile);
+        $newImage = imagecreatefrompng($tempFile);
+        if ($newImage !== false) {
+            imagealphablending($newImage, false);
+            imagesavealpha($newImage, true);
 
             if ($removeBackground) {
-                $imagick->setImageAlphaChannel(Imagick::ALPHACHANNEL_ACTIVATE);
-
-                $pixel = $imagick->getImagePixelColor(0, 0);
-                $color = $pixel->getColor();
-                if ($color['a'] > 0) {
-                    $bgColor = "rgb({$color['r']},{$color['g']},{$color['b']})";
-                    $fuzz = Imagick::getQuantum() * 0.1;
-                    $imagick->transparentPaintImage($bgColor, 0, $fuzz, false);
+                require_once __DIR__ . '/../../includes/gd_background_removal.php';
+                // On palette images imagecolorat() returns palette indexes, not RGB values
+                if (!imageistruecolor($newImage)) {
+                    imagepalettetotruecolor($newImage);
+                    imagealphablending($newImage, false);
+                    imagesavealpha($newImage, true);
+                }
+                // Paint out the corner color with ~10% fuzz
+                $corner = imagecolorat($newImage, 0, 0);
+                if ((($corner >> 24) & 0x7F) !== 127) {
+                    gdRemoveBackgroundColor($newImage, ($corner >> 16) & 0xFF, ($corner >> 8) & 0xFF, $corner & 0xFF);
                 }
             }
 
-            $imagick->setImageFormat('png');
-            $imagick->writeImage($uploadFile);
-            $imagick->clear();
-            $imagick->destroy();
+            // Crop/trim transparent margins
+            require_once __DIR__ . '/../../includes/gd_background_removal.php';
+            $newImage = gdCropTransparent($newImage, 2);
 
+            $saved = imagepng($newImage, $uploadFile);
+            imagedestroy($newImage);
         } else {
-            $newImage = imagecreatefrompng($tempFile);
-            if ($newImage !== false) {
-                imagealphablending($newImage, false);
-                imagesavealpha($newImage, true);
-
-                if ($removeBackground) {
-                    $transparent = imagecolorallocatealpha($newImage, 0, 0, 0, 127);
-                    imagefill($newImage, 0, 0, $transparent);
-                }
-
-                imagepng($newImage, $uploadFile);
-                imagedestroy($newImage);
-            } else {
-                unlink($tempFile);
-                return false;
-            }
+            unlink($tempFile);
+            return false;
         }
 
         unlink($tempFile);
-        return true;
+        return $saved;
     }
 
     return false;
@@ -181,6 +178,12 @@ function resizeAndUploadLogo($uploadedFile, $uploadDir, $name, $settings)
                 imagesavealpha($image, true);
             }
 
+            // Crop/trim transparent margins (ensure we update dimensions after cropping)
+            require_once __DIR__ . '/../../includes/gd_background_removal.php';
+            $image = gdCropTransparent($image, 2);
+            $width = imagesx($image);
+            $height = imagesy($image);
+
             $newWidth = $width;
             $newHeight = $height;
 
@@ -201,19 +204,26 @@ function resizeAndUploadLogo($uploadedFile, $uploadDir, $name, $settings)
             imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
             if ($fileExtension === 'png') {
-                imagepng($resizedImage, $uploadFile);
+                $saved = imagepng($resizedImage, $uploadFile);
             } elseif ($fileExtension === 'jpg' || $fileExtension === 'jpeg') {
-                imagejpeg($resizedImage, $uploadFile);
+                $saved = imagejpeg($resizedImage, $uploadFile);
             } elseif ($fileExtension === 'gif') {
-                imagegif($resizedImage, $uploadFile);
+                $saved = imagegif($resizedImage, $uploadFile);
             } elseif ($fileExtension === 'webp') {
-                imagewebp($resizedImage, $uploadFile);
+                $saved = imagewebp($resizedImage, $uploadFile);
             } else {
                 return "";
             }
 
             imagedestroy($image);
             imagedestroy($resizedImage);
+
+            if (!$saved) {
+                if (file_exists($uploadFile)) {
+                    unlink($uploadFile);
+                }
+                return "";
+            }
 
             return $fileName;
         }
@@ -234,7 +244,7 @@ $startDate = $_POST["start_date"];
 $paymentMethodId = $_POST["payment_method_id"];
 $payerUserId = $_POST["payer_user_id"];
 $categoryId = $_POST['category_id'];
-$notes = validate($_POST["notes"]);
+$notes = validate_markdown($_POST["notes"]);
 $url = validate($_POST['url']);
 $logoUrl = validate($_POST['logo-url']);
 $logo = "";
@@ -274,28 +284,79 @@ if ($logoUrl !== "") {
             exit();
         }
         $logo = resizeAndUploadLogo($_FILES['logo'], '../../images/uploads/logos/', $name, $settings);
+        if ($logo === "") {
+            $logoError = translate('error_saving_logo', $i18n);
+        }
+    }
+}
+
+$logoTextColor = null;
+$logoVariant = null;
+$removeBackgroundEnabled = isset($settings['removeBackground']) && $settings['removeBackground'] === 'true';
+
+// Themed variant generation piggybacks on the same "remove background"
+// setting: both only make sense for logos we're already reprocessing, and
+// this avoids running pixel classification on every single upload.
+if ($logo !== "" && $removeBackgroundEnabled) {
+    $logoExtension = strtolower(pathinfo($logo, PATHINFO_EXTENSION));
+    $logoPath = '../../images/uploads/logos/' . $logo;
+
+    if ($logoExtension === 'png' || $logoExtension === 'webp') {
+        $sourceImage = $logoExtension === 'png' ? imagecreatefrompng($logoPath) : imagecreatefromwebp($logoPath);
+
+        if ($sourceImage !== false) {
+            imagealphablending($sourceImage, false);
+            imagesavealpha($sourceImage, true);
+
+            $logoTextColor = classifyLogoTextColor($sourceImage);
+
+            if ($logoTextColor !== null) {
+                $variantImage = generateThemedLogoVariant($sourceImage);
+                $logoVariant = pathinfo($logo, PATHINFO_FILENAME) . '-variant.png';
+                imagepng($variantImage, '../../images/uploads/logos/' . $logoVariant);
+                imagedestroy($variantImage);
+            }
+
+            imagedestroy($sourceImage);
+        }
     }
 }
 
 if (!$isEdit) {
     $sql = "INSERT INTO subscriptions (
-                        name, logo, price, currency_id, next_payment, cycle, frequency, notes, 
-                        payment_method_id, payer_user_id, category_id, notify, inactive, url, 
+                        name, logo, price, currency_id, next_payment, cycle, frequency, notes,
+                        payment_method_id, payer_user_id, category_id, notify, inactive, url,
                         notify_days_before, user_id, cancellation_date, replacement_subscription_id,
-                        auto_renew, start_date
+                        auto_renew, start_date, logo_text_color, logo_variant
                     ) VALUES (
-                        :name, :logo, :price, :currencyId, :nextPayment, :cycle, :frequency, :notes, 
-                        :paymentMethodId, :payerUserId, :categoryId, :notify, :inactive, :url, 
+                        :name, :logo, :price, :currencyId, :nextPayment, :cycle, :frequency, :notes,
+                        :paymentMethodId, :payerUserId, :categoryId, :notify, :inactive, :url,
                         :notifyDaysBefore, :userId, :cancellationDate, :replacement_subscription_id,
-                        :autoRenew, :startDate
+                        :autoRenew, :startDate, :logoTextColor, :logoVariant
                     )";
 } else {
     $id = $_POST['id'];
-    $sql = "UPDATE subscriptions SET 
-                        name = :name, 
-                        price = :price, 
+
+    // When the logo is being replaced, remember the old files so they can be
+    // removed after the update instead of lingering as orphans.
+    $oldLogo = null;
+    $oldLogoVariant = null;
+    if ($logo != "") {
+        $oldLogoStmt = $db->prepare("SELECT logo, logo_variant FROM subscriptions WHERE id = :id AND user_id = :userId");
+        $oldLogoStmt->bindParam(':id', $id, SQLITE3_INTEGER);
+        $oldLogoStmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
+        $oldLogoResult = $oldLogoStmt->execute();
+        if ($oldLogoResult && ($oldLogoRow = $oldLogoResult->fetchArray(SQLITE3_ASSOC))) {
+            $oldLogo = $oldLogoRow['logo'];
+            $oldLogoVariant = $oldLogoRow['logo_variant'];
+        }
+    }
+
+    $sql = "UPDATE subscriptions SET
+                        name = :name,
+                        price = :price,
                         currency_id = :currencyId,
-                        next_payment = :nextPayment, 
+                        next_payment = :nextPayment,
                         auto_renew = :autoRenew,
                         start_date = :startDate,
                         cycle = :cycle, 
@@ -312,7 +373,7 @@ if (!$isEdit) {
                         replacement_subscription_id = :replacement_subscription_id";
 
     if ($logo != "") {
-        $sql .= ", logo = :logo";
+        $sql .= ", logo = :logo, logo_text_color = :logoTextColor, logo_variant = :logoVariant";
     }
 
     $sql .= " WHERE id = :id AND user_id = :userId";
@@ -322,6 +383,8 @@ $stmt = $db->prepare($sql);
 $stmt->bindParam(':name', $name, SQLITE3_TEXT);
 if ($logo != "") {
     $stmt->bindParam(':logo', $logo, SQLITE3_TEXT);
+    $stmt->bindParam(':logoTextColor', $logoTextColor, SQLITE3_TEXT);
+    $stmt->bindParam(':logoVariant', $logoVariant, SQLITE3_TEXT);
 }
 $stmt->bindParam(':price', $price, SQLITE3_FLOAT);
 $stmt->bindParam(':currencyId', $currencyId, SQLITE3_INTEGER);
@@ -352,6 +415,17 @@ if ($stmt->execute()) {
     if ($logoError !== "") {
         $success['logo_warning'] = $logoError;
     }
+
+    // The logo was just replaced: drop the previous files if nothing else uses them.
+    if ($isEdit && $logo != "") {
+        if ($oldLogo !== null && $oldLogo !== $logo) {
+            deleteLogoFileIfUnused($db, $oldLogo, '../../images/uploads/logos/');
+        }
+        if ($oldLogoVariant !== null && $oldLogoVariant !== $logoVariant) {
+            deleteLogoFileIfUnused($db, $oldLogoVariant, '../../images/uploads/logos/');
+        }
+    }
+
     header('Content-Type: application/json');
     echo json_encode($success);
     exit();
