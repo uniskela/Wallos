@@ -32,6 +32,7 @@ wallos_test('widget catalog includes schema_version and all widget ids', functio
 
     foreach ($catalog['widgets'] as $widget) {
         assert_true($widget['enabled'] === true, $widget['widget_id'] . ' defaults enabled');
+        assert_true($widget['requires_params'] === false, $widget['widget_id'] . ' has no required params');
     }
 });
 
@@ -148,6 +149,73 @@ wallos_test('payment method budget uses period amount needed window', function (
     );
     assert_same(1, count($filtered), 'filter to business only');
     assert_same(2, $filtered[0]['payment_method_id'], 'filtered id');
+
+    $db->close();
+});
+
+wallos_test('savings monthly cost nets out replacement subscriptions', function () {
+    $db = wallos_test_open_database();
+    $db->exec("INSERT INTO user (id, username, email, password, main_currency, api_key)
+               VALUES (1, 'tester', 't@example.com', 'x', 1, 'test-api-key')");
+
+    assert_equals(
+        10.0,
+        wallos_subscription_monthly_cost([
+            'price' => 10,
+            'currency_id' => 1,
+            'cycle' => 3,
+            'frequency' => 1,
+        ], $db, 1),
+        'monthly cycle price is unchanged when rates are 1'
+    );
+
+    // Inactive Netflix replaced by cheaper active Disney+
+    $db->exec("INSERT INTO subscriptions (
+        id, name, price, currency_id, next_payment, cycle, frequency,
+        payment_method_id, payer_user_id, category_id, inactive, auto_renew, user_id, replacement_subscription_id
+    ) VALUES (
+        10, 'Netflix', 20, 1, '2026-09-01', 3, 1,
+        1, 1, 1, 1, 1, 1, 11
+    )");
+    $db->exec("INSERT INTO subscriptions (
+        id, name, price, currency_id, next_payment, cycle, frequency,
+        payment_method_id, payer_user_id, category_id, inactive, auto_renew, user_id, replacement_subscription_id
+    ) VALUES (
+        11, 'Disney+', 8, 1, '2026-09-15', 3, 1,
+        1, 1, 1, 0, 1, 1, NULL
+    )");
+
+    $subs = [];
+    $result = $db->query('SELECT * FROM subscriptions WHERE user_id = 1');
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $subs[] = $row;
+    }
+
+    $inactiveCount = 0;
+    $totalSavings = 0.0;
+    $totalCostsInReplacements = 0.0;
+    $countedReplacements = [];
+    foreach ($subs as $sub) {
+        if ((int) ($sub['inactive'] ?? 0) !== 1) {
+            continue;
+        }
+        $inactiveCount++;
+        $totalSavings += wallos_subscription_monthly_cost($sub, $db, 1);
+        $replacementId = $sub['replacement_subscription_id'] ?? null;
+        if ($replacementId && !in_array($replacementId, $countedReplacements, true)) {
+            foreach ($subs as $candidate) {
+                if ((int) $candidate['id'] === (int) $replacementId) {
+                    $totalCostsInReplacements += wallos_subscription_monthly_cost($candidate, $db, 1);
+                    break;
+                }
+            }
+            $countedReplacements[] = $replacementId;
+        }
+    }
+    $totalSavings -= $totalCostsInReplacements;
+
+    assert_same(1, $inactiveCount, 'one inactive');
+    assert_equals(12.0, $totalSavings, '20 inactive minus 8 replacement = 12 net savings');
 
     $db->close();
 });

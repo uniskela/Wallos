@@ -360,31 +360,33 @@ switch ($widgetId) {
         break;
 
     case 'savings':
+        // Match stats_calculations.php: inactive amortized cost minus replacement costs.
         $inactiveCount = 0;
         $totalSavings = 0.0;
+        $totalCostsInReplacements = 0.0;
+        $countedReplacements = [];
         foreach ($subscriptions as $sub) {
             if ((int) ($sub['inactive'] ?? 0) !== 1) {
                 continue;
             }
             $inactiveCount++;
-            $converted = wallos_convert_price($sub['price'], $sub['currency_id'], $db, $userId);
-            $cycle = (int) $sub['cycle'];
-            $frequency = max(1, (int) $sub['frequency']);
-            switch ($cycle) {
-                case 1:
-                    $totalSavings += $converted * (30 / $frequency);
-                    break;
-                case 2:
-                    $totalSavings += $converted * (4.35 / $frequency);
-                    break;
-                case 3:
-                    $totalSavings += $converted / $frequency;
-                    break;
-                case 4:
-                    $totalSavings += $converted / (12 * $frequency);
-                    break;
+            $totalSavings += wallos_subscription_monthly_cost($sub, $db, $userId);
+
+            $replacementId = $sub['replacement_subscription_id'] ?? null;
+            if ($replacementId && !in_array($replacementId, $countedReplacements, true)) {
+                $repStmt = $db->prepare(
+                    'SELECT price, currency_id, cycle, frequency FROM subscriptions WHERE id = :id AND user_id = :userId'
+                );
+                $repStmt->bindValue(':id', (int) $replacementId, SQLITE3_INTEGER);
+                $repStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+                $replacement = $repStmt->execute()->fetchArray(SQLITE3_ASSOC);
+                if ($replacement) {
+                    $totalCostsInReplacements += wallos_subscription_monthly_cost($replacement, $db, $userId);
+                }
+                $countedReplacements[] = $replacementId;
             }
         }
+        $totalSavings -= $totalCostsInReplacements;
         $response['inactive_subscriptions'] = $inactiveCount;
         $response['monthly_savings'] = round($totalSavings, 2);
         $response['yearly_savings'] = round($totalSavings * 12, 2);

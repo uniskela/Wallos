@@ -186,6 +186,39 @@ if (!function_exists('wallos_build_payment_method_budget_rows')) {
     }
 }
 
+if (!function_exists('wallos_subscription_monthly_cost')) {
+    /**
+     * Amortized monthly cost in the user's main currency (same cycle math as stats).
+     */
+    function wallos_subscription_monthly_cost(array $subscription, SQLite3 $database, $userId)
+    {
+        require_once __DIR__ . '/currency_rates.php';
+
+        $converted = wallos_convert_price(
+            $subscription['price'],
+            $subscription['currency_id'],
+            $database,
+            $userId
+        );
+        $cycle = (int) ($subscription['cycle'] ?? 0);
+        $frequency = max(1, (int) ($subscription['frequency'] ?? 1));
+
+        switch ($cycle) {
+            case 1:
+                return $converted * (30 / $frequency);
+            case 2:
+                return $converted * (4.35 / $frequency);
+            case 3:
+                return $converted / $frequency;
+            case 4:
+                return $converted / (12 * $frequency);
+            case 5:
+            default:
+                return 0.0;
+        }
+    }
+}
+
 if (!function_exists('wallos_build_category_cost_rows')) {
     /**
      * Top-N category monthly costs from precomputed $categoryCost map.
@@ -235,7 +268,8 @@ if (!function_exists('wallos_list_widgets_catalog')) {
                 'title' => function_exists('translate')
                     ? translate($titleKey, $i18n)
                     : ($i18n[$titleKey] ?? $widgetId),
-                'requires_params' => $widgetId === 'payment_method_budget',
+                // Optional filters (e.g. payment_method_id) are never required.
+                'requires_params' => false,
             ];
         }
 
