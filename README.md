@@ -84,7 +84,6 @@ See instructions to run Wallos below.
     - curl
     - dom
     - gd
-    - imagick
     - intl
     - openssl
     - sqlite3
@@ -197,7 +196,16 @@ If you want to trigger an Update of the exchange rates, change your main currenc
 
 ![Screenshot](screenshots/wallos-subscriptions-light.png)
 
+<details>
+<summary>See more screenshots</summary>
+
 ![Screenshot](screenshots/wallos-subscriptions-dark.png)
+
+![Screenshot](screenshots/wallos-subscriptions-popup.png)
+
+![Screenshot](screenshots/wallos-dashboard-light.png)
+
+![Screenshot](screenshots/wallos-dashboard-dark.png)
 
 ![Screenshot](screenshots/wallos-stats.png)
 
@@ -207,11 +215,43 @@ If you want to trigger an Update of the exchange rates, change your main currenc
 
 ![Screenshot](screenshots/wallos-subscriptions-mobile-light.png) ![Screenshot](screenshots/wallos-subscriptions-mobile-dark.png)
 
+![Screenshot](screenshots/wallos-subscriptions-mobile-sheet.png)
+
 ![Screenshot](screenshots/wallos-dashboard-mobile-light.png) ![Screenshot](screenshots/wallos-dashboard-mobile-dark.png)
+
+</details>
 
 ## OIDC
 
 OIDC can be enabled on the Admin page and can be used with providers that support OAuth.
+Wallos can also resolve OIDC settings declaratively from environment variables. When an `OIDC_*` variable is set, it overrides the corresponding database value at runtime without rewriting the database.
+
+If `OIDC_ISSUER` is set, Wallos will fetch `/.well-known/openid-configuration` at runtime and use discovery for the authorization, token, and user info endpoints unless a more specific endpoint variable is also set.
+
+| Environment Variable | UI Equivalent |
+| --- | --- |
+| `OIDC_ENABLED` | `Enable OIDC/OAuth` |
+| `OIDC_PROVIDER_NAME` | `Provider Name` |
+| `OIDC_CLIENT_ID` | `Client ID` |
+| `OIDC_CLIENT_SECRET` | `Client Secret` |
+| `OIDC_CLIENT_SECRET_FILE` | `Client Secret` |
+| `OIDC_ISSUER` | No direct UI field |
+| `OIDC_AUTH_URL` | `Auth URL` |
+| `OIDC_TOKEN_URL` | `Token URL` |
+| `OIDC_USERINFO_URL` | `User Info URL` |
+| `OIDC_REDIRECT_URL` | `Redirect URL` |
+| `OIDC_LOGOUT_URL` | `Logout URL` |
+| `OIDC_USER_IDENTIFIER` | `User Identifier Field` |
+| `OIDC_SCOPES` | `Scopes` |
+| `OIDC_AUTO_CREATE_USER` | `Create user automatically` |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | `Disable password login` |
+| `OIDC_REQUIRE_EMAIL_VERIFIED` | `Require verified email for account linking` |
+
+### SSRF allowlist
+
+Wallos blocks webhook, SMTP, and OIDC endpoint URLs that resolve to private/link-local/loopback addresses unless the host is present in the Security Settings allowlist. Normally that allowlist is edited through the Admin UI, which requires a manual login before OIDC can be used against an identity provider on a private address (e.g. a self-hosted IdP at `auth.example.com`).
+
+Setting the `SSRF_ALLOWLIST` environment variable overrides the database value entirely (same full-override semantics as the `OIDC_*` variables above), so the allowlist can be provisioned on first boot with no manual UI step. It accepts a comma-separated list of hosts/IPs, optionally with a port (e.g. `SSRF_ALLOWLIST=auth.example.com,192.168.1.100:8123`). While set, the Security Settings field in the Admin UI is shown but disabled.
 
 ## API Documentation
 
