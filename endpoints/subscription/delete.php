@@ -1,11 +1,29 @@
 <?php
 require_once '../../includes/connect_endpoint.php';
 require_once '../../includes/validate_endpoint.php';
+require_once '../../includes/logo_cleanup.php';
 
 $postData = file_get_contents("php://input");
 $data = json_decode($postData, true);
 
 $subscriptionId = $data["id"];
+
+$logoStmt = $db->prepare("SELECT logo, logo_variant FROM subscriptions WHERE id = :subscriptionId AND user_id = :userId");
+$logoStmt->bindParam(':subscriptionId', $subscriptionId, SQLITE3_INTEGER);
+$logoStmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
+$logoResult = $logoStmt->execute();
+$logoRow = $logoResult ? $logoResult->fetchArray(SQLITE3_ASSOC) : false;
+
+$payersStmt = $db->prepare("DELETE FROM subscription_payers WHERE subscription_id IN (SELECT id FROM subscriptions WHERE id = :subscriptionId AND user_id = :userId)");
+$payersStmt->bindParam(':subscriptionId', $subscriptionId, SQLITE3_INTEGER);
+$payersStmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
+$payersStmt->execute();
+
+$categoriesStmt = $db->prepare("DELETE FROM subscription_categories WHERE subscription_id IN (SELECT id FROM subscriptions WHERE id = :subscriptionId AND user_id = :userId)");
+$categoriesStmt->bindParam(':subscriptionId', $subscriptionId, SQLITE3_INTEGER);
+$categoriesStmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
+$categoriesStmt->execute();
+
 $deleteQuery = "DELETE FROM subscriptions WHERE id = :subscriptionId AND user_id = :userId";
 $deleteStmt = $db->prepare($deleteQuery);
 $deleteStmt->bindParam(':subscriptionId', $subscriptionId, SQLITE3_INTEGER);
@@ -17,6 +35,11 @@ if ($deleteStmt->execute()) {
     $stmt->bindParam(':subscriptionId', $subscriptionId, SQLITE3_INTEGER);
     $stmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
     $stmt->execute();
+
+    if ($logoRow !== false) {
+        deleteLogoFileIfUnused($db, $logoRow['logo'], '../../images/uploads/logos/');
+        deleteLogoFileIfUnused($db, $logoRow['logo_variant'], '../../images/uploads/logos/');
+    }
 
     echo json_encode([
         "success" => true,

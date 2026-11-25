@@ -1,10 +1,23 @@
 <?php
 require_once '../../includes/connect_endpoint.php';
 
+header('Content-Type: application/json; charset=utf-8');
+
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+  // Answer before the list helpers load: they query on behalf of a user.
+  http_response_code(401);
+  echo json_encode(['success' => false, 'message' => html_entity_decode(translate('session_expired', $i18n), ENT_QUOTES | ENT_HTML5, 'UTF-8')], JSON_INVALID_UTF8_SUBSTITUTE);
+  $db->close();
+  exit;
+}
+
 require_once '../../includes/currency_formatter.php';
 require_once '../../includes/getdbkeys.php';
+require_once '../../includes/logo_theme_variant.php';
 
 include_once '../../includes/list_subscriptions.php';
+require_once '../../includes/subscription_payers.php';
+require_once '../../includes/subscription_categories.php';
 
 require_once '../../includes/getsettings.php';
 
@@ -39,16 +52,21 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 
   if (isset($_GET['categories']) && $_GET['categories'] != "") {
     $allCategories = explode(',', $_GET['categories']);
+    $sql .= " AND " . categoryFilterCondition($allCategories, $params);
+  }
+
+  if (isset($_GET['folders']) && $_GET['folders'] != "") {
+    $allFolders = explode(',', $_GET['folders']);
     $placeholders = array_map(function ($idx) {
-      return ":categories{$idx}";
-    }, array_keys($allCategories));
+      return ":folders{$idx}";
+    }, array_keys($allFolders));
 
     $sql .= " AND (" . implode(' OR ', array_map(function ($placeholder) {
-      return "category_id = {$placeholder}";
+      return "folder_id = {$placeholder}";
     }, $placeholders)) . ")";
 
-    foreach ($allCategories as $idx => $category) {
-      $params[":categories{$idx}"] = $category;
+    foreach ($allFolders as $idx => $folder) {
+      $params[":folders{$idx}"] = $folder;
     }
   }
 
@@ -69,17 +87,7 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 
   if (isset($_GET['members']) && $_GET['members'] != "") {
     $allMembers = explode(',', $_GET['members']);
-    $placeholders = array_map(function ($idx) {
-      return ":members{$idx}";
-    }, array_keys($allMembers));
-
-    $sql .= " AND (" . implode(' OR ', array_map(function ($placeholder) {
-      return "payer_user_id = {$placeholder}";
-    }, $placeholders)) . ")";
-
-    foreach ($allMembers as $idx => $member) {
-      $params[":members{$idx}"] = $member;
-    }
+    $sql .= " AND " . payerFilterCondition($allMembers, $params);
   }
 
   if (isset($_GET['state']) && $_GET['state'] != "") {
@@ -103,9 +111,11 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
       if ($type === 'reminder') {
         $notifConditions[] = "notify = 1";
       } elseif ($type === 'cancellation') {
-        $notifConditions[] = "(cancellation_date IS NOT NULL AND cancellation_date != '')";
+        // One-time purchases are never treated as cancellable, matching the
+        // dashboard, statistics page and cancellation notification cron.
+        $notifConditions[] = "(cancellation_date IS NOT NULL AND cancellation_date != '' AND cycle != 5)";
       } elseif ($type === 'none') {
-        $notifConditions[] = "(notify = 0 AND (cancellation_date IS NULL OR cancellation_date = ''))";
+        $notifConditions[] = "(notify = 0 AND (cancellation_date IS NULL OR cancellation_date = '' OR cycle = 5))";
       }
     }
     if (!empty($notifConditions)) {
@@ -171,16 +181,29 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     }
   }
 
+  $payersBySubscription = getPayersBySubscription($db, $subscriptions);
+  $categoriesBySubscription = getCategoriesBySubscription($db, $subscriptions);
+  $paidStatusFilter = isset($_GET['paidStatus']) && in_array($_GET['paidStatus'], ['paid', 'unpaid']) ? $_GET['paidStatus'] : '';
+
   foreach ($subscriptions as $subscription) {
     if ($subscription['inactive'] == 1 && isset($settings['hideDisabledSubscriptions']) && $settings['hideDisabledSubscriptions'] === 'true') {
+      continue;
+    }
+    $cycle = $subscription['cycle'];
+    $frequency = $subscription['frequency'];
+    $paidThisCycle = isPaidThisCycle($subscription['paid_at'] ?? null, $cycle, $frequency, $subscription['next_payment']);
+    if ($paidStatusFilter === 'paid' && !$paidThisCycle) {
+      continue;
+    }
+    if ($paidStatusFilter === 'unpaid' && $paidThisCycle) {
       continue;
     }
     $id = $subscription['id'];
     $print[$id]['id'] = $id;
     $print[$id]['logo'] = $subscription['logo'] != "" ? "images/uploads/logos/" . $subscription['logo'] : "";
+    $print[$id]['logo_text_color'] = $subscription['logo_text_color'] ?? null;
+    $print[$id]['logo_variant'] = !empty($subscription['logo_variant']) ? "images/uploads/logos/" . $subscription['logo_variant'] : null;
     $print[$id]['name'] = $subscription['name'] ?? "";
-    $cycle = $subscription['cycle'];
-    $frequency = $subscription['frequency'];
     $print[$id]['billing_cycle'] = getBillingCycle($cycle, $frequency, $i18n);
     $print[$id]['one_time'] = ($cycle == 5);
     $paymentMethodId = $subscription['payment_method_id'];
@@ -190,15 +213,21 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     $formatted_date = $formatter->format($next_payment_timestamp);
     $print[$id]['next_payment'] = $formatted_date;
     $print[$id]['auto_renew'] = $subscription['auto_renew'];
-    $paymentIconFolder = (strpos($payment_methods[$paymentMethodId]['icon'], 'images/uploads/icons/') !== false) ? "" : "images/uploads/logos/";
-    $print[$id]['payment_method_icon'] = $paymentIconFolder . $payment_methods[$paymentMethodId]['icon'];
-    $print[$id]['payment_method_name'] = $payment_methods[$paymentMethodId]['name'];
+    $paymentIcon = $payment_methods[$paymentMethodId ?? ""]['icon'] ?? "";
+    $paymentIconFolder = (strpos($paymentIcon, 'images/uploads/icons/') !== false) ? "" : "images/uploads/logos/";
+    $print[$id]['payment_method_icon'] = $paymentIcon === "" ? "" : $paymentIconFolder . $paymentIcon;
+    $print[$id]['payment_method_name'] = $payment_methods[$paymentMethodId ?? ""]['name'] ?? "";
     $print[$id]['payment_method_id'] = $paymentMethodId;
     $print[$id]['category_id'] = $subscription['category_id'];
+    $print[$id]['category_ids'] = $categoriesBySubscription[$id] ?? [];
+    $print[$id]['folder_id'] = $subscription['folder_id'] ?? null;
     $print[$id]['payer_user_id'] = $subscription['payer_user_id'];
+    $print[$id]['payer_user_ids'] = $payersBySubscription[$id] ?? [];
     $print[$id]['price'] = floatval($subscription['price']);
+    $print[$id]['sort_price'] = getSortPrice($subscription['price'], $subscription['currency_id'], $mainCurrencyId, $cycle, $frequency, $settings, $db);
     $print[$id]['progress'] = getSubscriptionProgress($cycle, $frequency, $subscription['next_payment']);
     $print[$id]['inactive'] = $subscription['inactive'];
+    $print[$id]['paid_this_cycle'] = $paidThisCycle;
     $print[$id]['url'] = $subscription['url'] ?? "";
     $print[$id]['notes'] = $subscription['notes'] ?? "";
     $print[$id]['replacement_subscription_id'] = $subscription['replacement_subscription_id'];
@@ -229,34 +258,63 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 
   if ($sortOrder == "category_id") {
     usort($print, function ($a, $b) use ($categories) {
-      return $categories[$a['category_id']]['order'] - $categories[$b['category_id']]['order'];
+      return ($categories[$a['category_id'] ?? ""]['order'] ?? PHP_INT_MAX) <=> ($categories[$b['category_id'] ?? ""]['order'] ?? PHP_INT_MAX);
     });
   }
   
   if ($sortOrder == "payment_method_id") {
     usort($print, function ($a, $b) use ($payment_methods) {
-      return $payment_methods[$a['payment_method_id']]['order'] - $payment_methods[$b['payment_method_id']]['order'];
+      return ($payment_methods[$a['payment_method_id'] ?? ""]['order'] ?? PHP_INT_MAX) <=> ($payment_methods[$b['payment_method_id'] ?? ""]['order'] ?? PHP_INT_MAX);
     });
   }
 
-  if (isset($print)) {
-    printSubscriptions($print, $sort, $categories, $members, $i18n, $colorTheme, "../../", $settings['disabledToBottom'], $settings['mobileNavigation'], $settings['showSubscriptionProgress'], $currencies, $lang);
+  $iconDir = '../../images/siteicons/svg/';
+  $readIcon = function ($name) use ($iconDir) {
+    return trim(file_get_contents($iconDir . $name . '.php'));
+  };
+  $mobileNavigation = $settings['mobileNavigation'] === 'true';
+
+  $icons = [
+    'logo' => $readIcon('logo'),
+    'automatic' => $readIcon('automatic'),
+    'manual' => $readIcon('manual'),
+  ];
+  if ($mobileNavigation) {
+    foreach (['clone', 'delete', 'renew', 'edit', 'paid'] as $name) {
+      $icons[$name] = $readIcon('mobile-menu/' . $name);
+    }
   }
 
-  if (count($subscriptions) == 0) {
-    ?>
-    <div class="no-matching-subscriptions">
-      <p>
-        <?= translate('no_matching_subscriptions', $i18n) ?>
-      </p>
-      <button class="button" onClick="clearFilters()">
-        <span clasS="fa-solid fa-minus-circle"></span>
-        <?= translate('clear_filters', $i18n) ?>
-      </button>
-      <img src="images/siteimages/empty.png" alt="<?= translate('empty_page', $i18n) ?>" />
-    </div>
-    <?php
+  $labels = [];
+  foreach (['payment_method', 'edit_subscription', 'edit', 'delete', 'clone', 'renew', 'cancel', 'mark_as_paid', 'mark_as_unpaid', 'paid'] as $key) {
+    $labels[$key] = htmlToText(translate($key, $i18n));
   }
+
+  echo json_encode([
+    'success' => true,
+    'total' => count($subscriptions),
+    'mobile_navigation' => $mobileNavigation,
+    'subscriptions' => buildSubscriptionsPayload(
+      $print ?? [],
+      $sort,
+      $categories,
+      $folders,
+      $members,
+      $i18n,
+      $settings['disabledToBottom'],
+      $settings['showSubscriptionProgress'],
+      $currencies,
+      $lang
+    ),
+    'folders' => buildFolderStats($db, $userId, $folders ?? [], $mainCurrencyId, $currencies, $i18n),
+    'labels' => $labels,
+    'icons' => $icons,
+    'messages' => [
+      'no_matching_subscriptions' => htmlToText(translate('no_matching_subscriptions', $i18n)),
+      'clear_filters' => htmlToText(translate('clear_filters', $i18n)),
+      'empty_page' => htmlToText(translate('empty_page', $i18n)),
+    ],
+  ], JSON_INVALID_UTF8_SUBSTITUTE);
 }
 
 $db->close();

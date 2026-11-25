@@ -1,5 +1,10 @@
 <?php
+require_once 'includes/instance_config.php';
+require_once 'includes/html_text.php';
 require_once 'includes/header.php';
+require_once 'includes/upcoming_payments.php';
+require_once 'includes/webpush_helper.php';
+require_once 'includes/html_text.php';
 
 $currencies = array();
 $query = "SELECT * FROM currencies WHERE user_id = :userId";
@@ -11,14 +16,86 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     $currencies[$currencyId] = $row;
 }
 $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
+$useCustomPeriod = !empty($userData['use_custom_period']);
+$budgetPeriodType = $userData['budget_period_type'] ?? 'monthly';
+$budgetPeriodAnchorDate = $userData['budget_period_anchor_date'] ?? date('Y-m-d');
+if ($budgetPeriodAnchorDate === '1970-01-01' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $budgetPeriodAnchorDate)) {
+    $budgetPeriodAnchorDate = date('Y-m-d');
+}
+
+// A monthly period anchored on the 1st is a calendar month, so switching it on
+// changes nothing. The check runs through the same function the statistics use
+// rather than re-deriving the rule, so the warning cannot disagree with them.
+require_once 'includes/budget_period_calculations.php';
+$budgetPeriodSecondDay = sanitizeBudgetSecondDay($userData['budget_period_second_day'] ?? 16);
+$previewPeriod = getActiveBudgetPeriod(new DateTime('now'), $budgetPeriodType, $budgetPeriodAnchorDate, $budgetPeriodSecondDay);
+$customPeriodMatchesCalendarMonth =
+    $previewPeriod['start']->format('Y-m-d') === date('Y-m-01')
+    && $previewPeriod['end']->format('Y-m-d') === date('Y-m-t');
+$upcomingPaymentsLimit = normalize_upcoming_payments_limit($settings['upcoming_payments_limit'] ?? 3);
 
 ?>
 
 <script src="scripts/libs/sortable.min.js"></script>
-<script src="scripts/libs/qrcode.min.js"></script>
 <style>
     .logo-preview:after {
         content: '<?= translate('upload_logo', $i18n) ?>';
+    }
+
+    .period-budget-controls {
+        align-items: flex-end;
+        flex-wrap: wrap;
+        gap: 12px 15px;
+    }
+
+    .period-budget-controls .period-budget-field {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 180px;
+        min-width: 160px;
+        gap: 8px;
+    }
+
+    /* display:flex above would otherwise win over the hidden attribute. */
+    .period-budget-controls .period-budget-field[hidden] {
+        display: none;
+    }
+
+    .period-budget-controls .period-budget-field label {
+        margin-bottom: 0;
+        line-height: 1.2;
+    }
+
+    .period-budget-controls .period-budget-save {
+        flex: 0 0 auto;
+    }
+
+    .period-budget-controls #budget_period_anchor_date {
+        display: block;
+        height: 50px;
+        min-height: 50px;
+    }
+
+    @media (min-width: 421px) and (max-width: 768px) {
+        .period-budget-controls .period-budget-field {
+            flex: 1 1 calc(50% - 8px);
+            min-width: 0;
+        }
+
+        .period-budget-controls .period-budget-save {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .period-budget-controls .period-budget-field {
+            flex: 1 1 100%;
+            min-width: 0;
+        }
+
+        .period-budget-controls .period-budget-save {
+            width: 100%;
+        }
     }
 </style>
 <section class="contain settings">
@@ -29,14 +106,115 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
         </header>
         <div class="account-budget">
             <div class="form-group-inline">
-                <label for="budget"><?= $userData['currency_symbol'] ?></label>
-                <input type="number" id="budget" name="budget" autocomplete="off" value="<?= $userData['budget'] ?>"
+                <label for="monthly_budget"><?= $userData['currency_symbol'] ?></label>
+                <input type="number" id="monthly_budget" name="monthly_budget" autocomplete="off" value="<?= $userData['budget'] ?>"
                     placeholder="Budget">
-                <input type="submit" value="<?= translate('save', $i18n) ?>" id="saveBudget" onClick="saveBudget()" />
+                <input type="submit" value="<?= translate('save', $i18n) ?>" id="saveMonthlyBudget" onClick="saveMonthlyBudget()" />
             </div>
             <div class="settings-notes">
                 <p>
-                    <i class="fa-solid fa-circle-info"></i> <?= translate('budget_info', $i18n) ?>
+                    <i class="fa-solid fa-circle-info"></i> <?= translate('monthly_budget_info', $i18n) ?>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="account-section">
+        <header>
+            <h2><?= translate('period_budget', $i18n) ?></h2>
+        </header>
+        <div class="account-budget">
+            <div class="form-group-inline">
+                <label for="period_budget"><?= $userData['currency_symbol'] ?></label>
+                <input type="number" id="period_budget" name="period_budget" autocomplete="off" value="<?= $userData['period_budget'] ?? 0 ?>"
+                    placeholder="Budget">
+            </div>
+            <div class="form-group-inline">
+                <input type="checkbox" id="use_custom_period" name="use_custom_period" <?= $useCustomPeriod ? "checked" : "" ?>>
+                <label for="use_custom_period">
+                    <?= translate('use_custom_period', $i18n) ?>
+                </label>
+            </div>
+            <div class="form-group-inline period-budget-controls">
+                <div class="period-budget-field">
+                    <label for="budget_period_type"><?= translate('budget_period', $i18n) ?></label>
+                    <select id="budget_period_type" name="budget_period_type">
+                        <option value="weekly" <?= $budgetPeriodType === 'weekly' ? 'selected' : '' ?>><?= translate('weekly', $i18n) ?></option>
+                        <option value="fortnightly" <?= $budgetPeriodType === 'fortnightly' ? 'selected' : '' ?>><?= translate('fortnightly', $i18n) ?></option>
+                        <option value="semimonthly" <?= $budgetPeriodType === 'semimonthly' ? 'selected' : '' ?>><?= translate('semimonthly', $i18n) ?></option>
+                        <option value="monthly" <?= $budgetPeriodType === 'monthly' ? 'selected' : '' ?>><?= translate('monthly', $i18n) ?></option>
+                    </select>
+                </div>
+                <div class="period-budget-field">
+                    <label for="budget_period_anchor_date"><?= translate('budget_anchor_date', $i18n) ?></label>
+                    <input type="date" id="budget_period_anchor_date" name="budget_period_anchor_date"
+                        value="<?= htmlspecialchars($budgetPeriodAnchorDate, ENT_QUOTES, 'UTF-8') ?>">
+                </div>
+                <div class="period-budget-field" id="secondPaydayField" <?= $budgetPeriodType === 'semimonthly' ? '' : 'hidden' ?>>
+                    <label for="budget_period_second_day"><?= translate('budget_second_payday', $i18n) ?></label>
+                    <select id="budget_period_second_day" name="budget_period_second_day">
+                        <?php for ($day = 1; $day <= 31; $day++) { ?>
+                            <option value="<?= $day ?>" <?= $budgetPeriodSecondDay === $day ? 'selected' : '' ?>>
+                                <?= $day === 31 ? translate('last_day_of_month', $i18n) : $day ?>
+                            </option>
+                        <?php } ?>
+                    </select>
+                </div>
+                <input type="submit" value="<?= translate('save', $i18n) ?>" id="savePeriodBudget" class="period-budget-save" onClick="savePeriodBudget()" />
+            </div>
+            <div class="settings-notes">
+                <p>
+                    <i class="fa-solid fa-circle-info"></i> <?= translate('period_budget_info', $i18n) ?>
+                </p>
+                <p id="customPeriodActiveWarning" <?= ($useCustomPeriod && !$customPeriodMatchesCalendarMonth) ? '' : 'hidden' ?>>
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <?= translate('custom_period_active_warning', $i18n) ?>
+                </p>
+                <p id="customPeriodWarning" <?= ($useCustomPeriod && $customPeriodMatchesCalendarMonth) ? '' : 'hidden' ?>>
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <?= translate('custom_period_same_as_month', $i18n) ?>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="account-section">
+        <header>
+            <h2><?= translate('payment_method_budget', $i18n) ?></h2>
+        </header>
+        <div class="account-budget payment-method-budgets">
+            <?php
+            // Only enabled methods, plus any disabled one that still has a budget set.
+            $pmBudgetStmt = $db->prepare('SELECT id, name, budget FROM payment_methods WHERE user_id = :userId AND (enabled = 1 OR budget > 0) ORDER BY `order` ASC');
+            $pmBudgetStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+            $pmBudgetResult = $pmBudgetStmt->execute();
+            $hasPaymentMethodsForBudget = false;
+            while ($pmBudgetResult && ($pmBudgetRow = $pmBudgetResult->fetchArray(SQLITE3_ASSOC))) {
+                $hasPaymentMethodsForBudget = true;
+                $pmBudgetId = (int) $pmBudgetRow['id'];
+                $pmBudgetValue = (float) ($pmBudgetRow['budget'] ?? 0);
+                ?>
+                <div class="form-group-inline payment-method-budget-row">
+                    <label for="payment_method_budget_<?= $pmBudgetId ?>"><?= htmlSafe($pmBudgetRow['name']) ?></label>
+                    <span><?= htmlSafe($userData['currency_symbol'] ?? '') ?></span>
+                    <input type="number" id="payment_method_budget_<?= $pmBudgetId ?>" min="0" step="0.01"
+                        value="<?= htmlspecialchars((string) $pmBudgetValue, ENT_QUOTES, 'UTF-8') ?>"
+                        data-payment-method-id="<?= $pmBudgetId ?>" autocomplete="off">
+                </div>
+                <?php
+            }
+            if ($hasPaymentMethodsForBudget) {
+                ?>
+                <div class="buttons">
+                    <input type="button" id="savePaymentMethodBudgets" value="<?= translate('save', $i18n) ?>" class="thin"
+                        onClick="savePaymentMethodBudgets()">
+                </div>
+                <?php
+            }
+            ?>
+            <div class="settings-notes">
+                <p>
+                    <i class="fa-solid fa-circle-info"></i> <?= translate('payment_method_budget_info', $i18n) ?>
                 </p>
             </div>
         </div>
@@ -129,6 +307,9 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
 
     if ($rowCount == 0) {
         $notifications['days'] = 1;
+        $notifications['period_summary_at_period_start'] = 0;
+    } else if (!isset($notifications['period_summary_at_period_start'])) {
+        $notifications['period_summary_at_period_start'] = 0;
     }
 
     // Email notifications
@@ -306,6 +487,56 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
         $notificationsNtfy['ignore_ssl'] = 0;
     }
 
+    // Whether this installation runs an ntfy server of its own, so the page can
+    // say that leaving the field empty is a choice rather than an omission.
+    $instanceNtfyServer = trim((string) (wallos_get_admin_settings($db)['ntfy_server'] ?? ''));
+
+    // Whether this installation runs a Telegram bot of its own, so the page can
+    // say that leaving the token empty is a choice rather than an omission.
+    $instanceTelegramBot = trim((string) (wallos_get_admin_settings($db)['telegram_bot_token'] ?? ''));
+
+    // Whether this installation runs a Gotify server of its own, so the page can
+    // say that leaving the field empty is a choice rather than an omission.
+    $instanceGotifyServer = trim((string) (wallos_get_admin_settings($db)['gotify_server'] ?? ''));
+
+    // Whether this installation runs a Pushover application of its own, so the
+    // page can say that leaving the field empty is a choice.
+    $instancePushoverToken = trim((string) (wallos_get_admin_settings($db)['pushover_token'] ?? ''));
+
+    // Push notifications
+    $sql = "SELECT * FROM push_notifications WHERE user_id = :userId LIMIT 1";
+    $stmt = $db->prepare($sql);
+    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+
+    $rowCount = 0;
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $notificationsPush['enabled'] = $row['enabled'];
+        $rowCount++;
+    }
+
+    if ($rowCount == 0) {
+        $notificationsPush['enabled'] = 0;
+    }
+
+    $pushSubscriptions = [];
+    $sql = "SELECT id, user_agent, created_at FROM push_subscriptions WHERE user_id = :userId ORDER BY id";
+    $stmt = $db->prepare($sql);
+    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $pushSubscriptions[] = $row;
+    }
+
+    // Generated lazily on first visit to this page for an installation that
+    // has never needed one before - see webpush_get_vapid_keys()'s own
+    // comment for why this lives on the admin row rather than per user.
+    $vapidPublicKey = '';
+    $vapidKeys = webpush_get_vapid_keys($db);
+    if ($vapidKeys !== false) {
+        $vapidPublicKey = $vapidKeys['public'];
+    }
+
     // Webhook notifications
     $sql = "SELECT * FROM webhook_notifications WHERE user_id = :userId LIMIT 1";
     $stmt = $db->prepare($sql);
@@ -388,7 +619,7 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                             $selected = $i == $notifications['days'] ? "selected" : "";
                             ?>
                             <option value="<?= $i ?>" <?= $selected ?>>
-                                <?= $i ?>     <?= translate('day_before', $i18n) ?>
+                                <?= $i ?>     <?= translate('days_before', $i18n) ?>
                             </option>
                             <?php
                         }
@@ -396,6 +627,13 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                     </select>
                     <input type="submit" class="thin" value="<?= translate('save', $i18n) ?>" id="saveNotifications"
                         onClick="saveNotifications()" />
+                </div>
+                <div class="form-group-inline">
+                    <input type="checkbox" id="period_summary_at_period_start" name="period_summary_at_period_start"
+                        <?= !empty($notifications['period_summary_at_period_start']) ? "checked" : "" ?>>
+                    <label for="period_summary_at_period_start">
+                        <?= translate('send_period_summary_at_period_start', $i18n) ?>
+                    </label>
                 </div>
             </section>
             <section class="account-notifications-section">
@@ -527,6 +765,14 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                         <input type="text" name="gotifyurl" id="gotifyurl" autocomplete="off"
                             placeholder="<?= translate('url', $i18n) ?>" value="<?= htmlspecialchars($notificationsGotify['url']) ?>" />
                     </div>
+                    <?php if ($instanceGotifyServer !== '' && trim((string) $notificationsGotify['url']) === ''): ?>
+                        <div class="settings-notes">
+                            <p>
+                                <i class="fa-solid fa-circle-info"></i>
+                                <?= translate('instance_gotify_server_in_use', $i18n) ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
                     <div class="form-group-inline">
                         <input type="text" name="gotifytoken" id="gotifytoken" autocomplete="off"
                             placeholder="<?= translate('token', $i18n) ?>"
@@ -569,6 +815,14 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                             placeholder="<?= translate('token', $i18n) ?>"
                             value="<?= htmlspecialchars($notificationsPushover['token']) ?>" />
                     </div>
+                    <?php if ($instancePushoverToken !== '' && trim((string) $notificationsPushover['token']) === ''): ?>
+                        <div class="settings-notes">
+                            <p>
+                                <i class="fa-solid fa-circle-info"></i>
+                                <?= translate('instance_pushover_application_in_use', $i18n) ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="buttons">
                         <input type="button" class="secondary-button thin mobile-grow"
@@ -597,6 +851,14 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                             placeholder="<?= translate('telegram_bot_token', $i18n) ?>"
                             value="<?= htmlspecialchars($notificationsTelegram['bot_token'] ? $notificationsTelegram['bot_token'] : "") ?>" />
                     </div>
+                    <?php if ($instanceTelegramBot !== '' && trim((string) $notificationsTelegram['bot_token']) === ''): ?>
+                        <div class="settings-notes">
+                            <p>
+                                <i class="fa-solid fa-circle-info"></i>
+                                <?= translate('instance_telegram_bot_in_use', $i18n) ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
                     <div class="form-group-inline">
                         <input type="text" name="telegramchatid" id="telegramchatid" autocomplete="off"
                             placeholder="<?= translate('telegram_chat_id', $i18n) ?>"
@@ -693,6 +955,14 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                         <input type="text" name="ntfyhost" id="ntfyhost" autocomplete="off"
                             placeholder="<?= translate('host', $i18n) ?>" value="<?= htmlspecialchars($notificationsNtfy['host']) ?>" />
                     </div>
+                    <?php if ($instanceNtfyServer !== '' && trim((string) $notificationsNtfy['host']) === ''): ?>
+                        <div class="settings-notes">
+                            <p>
+                                <i class="fa-solid fa-circle-info"></i>
+                                <?= translate('instance_ntfy_server_in_use', $i18n) ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
                     <div class="form-group-inline">
                         <input type="text" name="ntfytopic" id="ntfytopic" autocomplete="off"
                             placeholder="<?= translate('topic', $i18n) ?>" value="<?= htmlspecialchars($notificationsNtfy['topic']) ?>" />
@@ -713,6 +983,52 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                         <input type="submit" class="thin mobile-grow" value="<?= translate('save', $i18n) ?>"
                             id="saveNotificationsNtfy" onClick="saveNotificationsNtfyButton()" />
                     </div>
+            </section>
+
+            <section class="account-notifications-section">
+                <header class="account-notification-section-header" onclick="openNotificationsSettings('push');">
+                    <h3>
+                        <i class="fa-solid fa-bell"></i> <?= translate('push_notifications', $i18n) ?>
+                    </h3>
+                </header>
+                <div class="account-notification-section-settings" data-type="push">
+                    <div class="form-group-inline">
+                        <input type="checkbox" id="pushenabled" name="pushenabled" <?= $notificationsPush['enabled'] ? "checked" : "" ?>>
+                        <label for="pushenabled" class="capitalize"><?= translate('enabled', $i18n) ?></label>
+                    </div>
+                    <div class="push-devices-list" id="pushDevicesList">
+                        <?php if (empty($pushSubscriptions)): ?>
+                            <p id="noPushDevices" class="push-no-devices"><?= translate('no_devices_registered', $i18n) ?></p>
+                        <?php else: ?>
+                            <?php foreach ($pushSubscriptions as $subscription): ?>
+                                <div class="push-device-row" data-subscriptionid="<?= (int) $subscription['id'] ?>">
+                                    <span class="push-device-name">
+                                        <?= htmlspecialchars($subscription['user_agent'] !== '' ? $subscription['user_agent'] : translate('unknown_device', $i18n)) ?>
+                                    </span>
+                                    <button type="button" class="secondary-button thin" onclick="removePushSubscriptionButton(<?= (int) $subscription['id'] ?>)">
+                                        <?= translate('delete', $i18n) ?>
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="settings-notes">
+                        <p>
+                            <i class="fa-solid fa-circle-info"></i>
+                            <?= translate('push_notifications_info', $i18n) ?>
+                        </p>
+                    </div>
+                    <div class="buttons">
+                        <input type="button" class="secondary-button thin mobile-grow"
+                            value="<?= translate('test', $i18n) ?>" id="testNotificationsPush"
+                            onClick="testNotificationsPushButton()" />
+                        <input type="button" class="secondary-button thin mobile-grow"
+                            value="<?= translate('enable_on_this_device', $i18n) ?>" id="subscribePushButton"
+                            onClick="subscribePushButtonClick()" />
+                        <input type="submit" class="thin mobile-grow" value="<?= translate('save', $i18n) ?>"
+                            id="saveNotificationsPush" onClick="saveNotificationsPushButton()" />
+                    </div>
+                </div>
             </section>
 
             <section class="account-notifications-section">
@@ -824,6 +1140,20 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
     }
     ?>
 
+    <?php
+    $sql = "SELECT * FROM ai_settings WHERE user_id = :userId LIMIT 1";
+    $stmt = $db->prepare($sql);
+    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+
+    $aiSettings = [];
+    if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $aiSettings = $row;
+    }
+
+    $canTranslateCategories = !empty($aiSettings['enabled']) && !empty($aiSettings['model']) && $lang != 'en';
+    ?>
+
     <section class="account-section">
         <header>
             <h2><?= translate('categories', $i18n) ?></h2>
@@ -835,7 +1165,7 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                     if ($category['id'] != 1) {
                         $canDelete = true;
 
-                        $query = "SELECT COUNT(*) as count FROM subscriptions WHERE category_id = :categoryId AND user_id = :userId";
+                        $query = "SELECT COUNT(*) as count FROM subscriptions WHERE (category_id = :categoryId OR id IN (SELECT subscription_id FROM subscription_categories WHERE category_id = :categoryId)) AND user_id = :userId";
                         $stmt = $db->prepare($query);
                         $stmt->bindParam(':categoryId', $category['id'], SQLITE3_INTEGER);
                         $stmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
@@ -881,6 +1211,72 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
             <div class="buttons">
                 <input type="submit" value="<?= translate('add', $i18n) ?>" id="addCategory"
                     onClick="addCategoryButton()" class="thin mobile-grow" />
+                <?php
+                if ($canTranslateCategories) {
+                    ?>
+                    <button type="button" class="button secondary-button thin mobile-grow" id="translateCategories"
+                        onClick="translateCategories()">
+                        <i class="fa-solid fa-language"></i>
+                        <?= translate('translate_categories', $i18n) ?>
+                    </button>
+                    <?php
+                }
+                ?>
+            </div>
+        </div>
+    </section>
+
+    <?php
+    $sql = "SELECT * FROM folders WHERE user_id = :userId ORDER BY `order` ASC";
+    $stmt = $db->prepare($sql);
+    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+
+    if ($result) {
+        $folders = array();
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $folders[] = $row;
+        }
+    }
+    ?>
+
+    <section class="account-section">
+        <header>
+            <h2><?= translate('folders', $i18n) ?></h2>
+        </header>
+        <div class="account-categories">
+            <div class="settings-notes">
+                <p>
+                    <i class="fa-solid fa-circle-info"></i> <?= translate('folders_explanation', $i18n) ?>
+                </p>
+            </div>
+            <div id="folders" class="sortable-list">
+                <?php
+                foreach ($folders as $folder) {
+                    ?>
+                    <div class="form-group-inline" data-folderid="<?= $folder['id'] ?>">
+                        <div class=" drag-icon"><i class="fa-solid fa-grip-vertical"></i></div>
+                        <input type="color" name="folder-color" class="folder-color-picker"
+                            value="<?= htmlspecialchars($folder['color']) ?>"
+                            title="<?= translate('folder_color', $i18n) ?>">
+                        <input type="text" name="folder" autocomplete="off" value="<?= htmlSafe($folder['name']) ?>"
+                            placeholder="<?= translate('folder', $i18n) ?>">
+                        <button class="image-button medium" onClick="editFolder(<?= $folder['id'] ?>)" name="save"
+                            title="<?= translate('save_folder', $i18n) ?>">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+                        <button class="image-button medium" onClick="removeFolder(<?= $folder['id'] ?>)"
+                            title="<?= translate('delete_folder', $i18n) ?>">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <?php
+                }
+                ?>
+            </div>
+            <div class="buttons">
+                <input type="submit" value="<?= translate('add', $i18n) ?>" id="addFolder"
+                    onClick="addFolderButton()" class="thin mobile-grow" />
             </div>
         </div>
     </section>
@@ -1031,11 +1427,22 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                 <select name="fixer-provider" id="fixerProvider">
                     <option value="0" <?= $provider == 0 ? 'selected' : '' ?>>fixer.io</option>
                     <option value="1" <?= $provider == 1 ? 'selected' : '' ?>>apilayer.com</option>
+                    <option value="2" <?= $provider == 2 ? 'selected' : '' ?>>frankfurter.dev</option>
+                    <option value="3" <?= $provider == 3 ? 'selected' : '' ?>>allratestoday.com</option>
                 </select>
             </div>
             <div class="buttons">
                 <input type="submit" value="<?= translate('save', $i18n) ?>" id="addFixerKey"
                     onClick="addFixerKeyButton()" class="thin mobile-grow" />
+            </div>
+            <div class="api-usage" id="fixerUsage" style="display: none;">
+                <div class="api-usage-label">
+                    <span><?= translate('monthly_requests_used', $i18n) ?></span>
+                    <span id="fixerUsageCount"></span>
+                </div>
+                <div class="api-usage-track">
+                    <span class="api-usage-fill" id="fixerUsageFill"></span>
+                </div>
             </div>
             <div class="settings-notes">
                 <p><i class="fa-solid fa-circle-info"></i><?= translate('fixer_info', $i18n) ?></p>
@@ -1058,21 +1465,78 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                         </a>
                     </span>
                 </p>
+                <p>
+                    <?= translate("no_api_key_provider", $i18n) ?>
+                    <span>
+                        https://frankfurter.dev
+                        <a href="https://frankfurter.dev" title="Frankfurter" target="_blank">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </span>
+                    <span>
+                        https://allratestoday.com
+                        <a href="https://allratestoday.com" title="AllRatesToday" target="_blank">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </span>
+                </p>
             </div>
         </div>
     </section>
 
     <?php
-    $sql = "SELECT * FROM ai_settings WHERE user_id = :userId LIMIT 1";
-    $stmt = $db->prepare($sql);
-    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-    $result = $stmt->execute();
-
-    $aiSettings = [];
-    if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-        $aiSettings = $row;
+    $googleSearchApiKey = "";
+    if ($db->querySingle("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='google_search'") > 0) {
+        $sql = "SELECT api_key FROM google_search WHERE user_id = :userId";
+        $stmt = $db->prepare($sql);
+        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        if ($result && ($row = $result->fetchArray(SQLITE3_ASSOC))) {
+            $googleSearchApiKey = $row['api_key'];
+        }
     }
     ?>
+
+    <section class="account-section">
+        <header>
+            <h2>Google Search (SerpAPI)</h2>
+        </header>
+        <div class="account-google-search">
+            <div class="form-group">
+                <input type="text" name="google-search-key" id="googleSearchKey" autocomplete="off"
+                    value="<?= htmlspecialchars($googleSearchApiKey) ?>" placeholder="<?= translate('api_key', $i18n) ?>"
+                    <?= $demoMode ? 'disabled title="Not available on Demo Mode"' : '' ?>>
+            </div>
+            <div class="buttons">
+                <input type="submit" value="<?= translate('save', $i18n) ?>" id="saveGoogleSearch"
+                    onClick="saveGoogleSearchButton()" class="thin mobile-grow" />
+            </div>
+            <div class="api-usage" id="googleSearchUsage" style="display: none;">
+                <div class="api-usage-label">
+                    <span><?= translate('monthly_searches_used', $i18n) ?></span>
+                    <span id="googleSearchUsageCount"></span>
+                </div>
+                <div class="api-usage-track">
+                    <span class="api-usage-fill" id="googleSearchUsageFill"></span>
+                </div>
+            </div>
+            <div class="settings-notes">
+                <p>
+                    <i class="fa-solid fa-circle-info"></i>
+                    <?= translate('google_search_info', $i18n) ?>
+                </p>
+                <p><?= translate('get_key', $i18n) ?>:
+                    <span>
+                        https://serpapi.com/
+                        <a href="https://serpapi.com/users/sign_up?plan=free" title="SerpAPI"
+                            target="_blank" rel="noreferrer">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </span>
+                </p>
+            </div>
+        </div>
+    </section>
 
     <section class="account-section">
         <header>
@@ -1109,9 +1573,6 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                     class="<?= (isset($aiSettings['type']) && $aiSettings['type'] == 'ollama') ? 'hidden' : '' ?>"
                     placeholder="<?= translate('api_key', $i18n) ?>"
                     value="<?= isset($aiSettings['api_key']) ? htmlspecialchars($aiSettings['api_key']) : '' ?>" />
-                <button type="button" id="toggleAiApiKey" class="button secondary-button icon-button <?= (isset($aiSettings['type']) && $aiSettings['type'] == 'ollama') ? 'hidden' : '' ?>" onclick="toggleAiApiKeyVisibility()" aria-label="Toggle API key visibility">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
                 <button type="button" id="fetchModelsButton" class="button thin" onclick="fetch_ai_models()">
                     <?= translate('test', $i18n) ?>
                 </button>
@@ -1247,9 +1708,15 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                             title="<?= translate('search_logo', $i18n) ?>" onClick="searchPaymentIcon()">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </div>
+                        <div class="icon-search-backdrop" id="icon-search-backdrop" onClick="closeIconSearch()"></div>
                         <div id="icon-search-results" class="icon-search">
+                            <button type="button" class="close-icon-search" onClick="closeIconSearch()" title="<?= translate('cancel', $i18n) ?>">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
                             <header>
-                                <span class="fa-solid fa-xmark close-icon-search" onClick="closeIconSearch()"></span>
+                                <h3 id="icon-search-title" data-title="<?= translate('web_search', $i18n) ?>">
+                                    <?= translate('web_search', $i18n) ?>
+                                </h3>
                             </header>
                             <div id="icon-search-images"></div>
                         </div>
@@ -1426,6 +1893,17 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                     <label for="showoriginalprice"><?= translate('show_original_price', $i18n) ?></label>
                 </div>
             </div>
+            <div>
+                <div class="form-group">
+                    <label for="upcomingpaymentslimit"><?= translate('upcoming_payments_to_show', $i18n) ?></label>
+                    <select id="upcomingpaymentslimit" name="upcomingpaymentslimit" onChange="setUpcomingPaymentsLimit()">
+                        <option value="3" <?= $upcomingPaymentsLimit === 3 ? 'selected' : '' ?>>3</option>
+                        <option value="5" <?= $upcomingPaymentsLimit === 5 ? 'selected' : '' ?>>5</option>
+                        <option value="10" <?= $upcomingPaymentsLimit === 10 ? 'selected' : '' ?>>10</option>
+                        <option value="20" <?= $upcomingPaymentsLimit === 20 ? 'selected' : '' ?>>20</option>
+                    </select>
+                </div>
+            </div>
             <h3><?= translate('experience', $i18n) ?></h3>
             <div>
                 <div class="form-group-inline">
@@ -1441,6 +1919,13 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                     <input type="checkbox" id="showsubscriptionprogress" name="showsubscriptionprogress"
                         onChange="setShowSubscriptionProgress()" <?= $settings['show_subscription_progress'] ? 'checked' : '' ?>>
                     <label for="showsubscriptionprogress"><?= translate('show_subscription_progress', $i18n) ?></label>
+                </div>
+            </div>
+            <div>
+                <div class="form-group-inline">
+                    <input type="checkbox" id="weekstartssunday" name="weekstartssunday"
+                        onChange="setWeekStartsSunday()" <?= !empty($settings['week_starts_sunday']) ? 'checked' : '' ?>>
+                    <label for="weekstartssunday"><?= translate('week_starts_on_sunday', $i18n) ?></label>
                 </div>
             </div>
             <h3><?= translate('disabled_subscriptions', $i18n) ?></h3>
@@ -1478,12 +1963,22 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
         <div class="settings-notes">
             <p>
                 <i class="fa-solid fa-circle-info"></i>
+                <?= translate('remove_background_info', $i18n) ?>
+            </p>
+            <p>
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                 <?= translate('experimental_info', $i18n) ?>
             </p>
         </div>
     </section>
 
 </section>
+<script>
+    // The raw applicationServerKey bytes pushManager.subscribe() needs -
+    // not a secret, the same value every push service and the VAPID
+    // Authorization header's "k=" parameter are handed too.
+    window.vapidPublicKey = "<?= htmlspecialchars($vapidPublicKey, ENT_QUOTES, 'UTF-8') ?>";
+</script>
 <script src="scripts/settings.js?<?= $version ?>"></script>
 <script src="scripts/theme.js?<?= $version ?>"></script>
 <script src="scripts/notifications.js?<?= $version ?>"></script>

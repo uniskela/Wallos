@@ -3,9 +3,18 @@
 require_once '../../includes/connect_endpoint.php';
 require_once '../../includes/validate_endpoint.php';
 require_once '../../includes/ssrf_helper.php';
+require_once '../../includes/webhook_headers.php';
+require_once '../../includes/instance_config.php';
 
 $postData = file_get_contents("php://input");
 $data = json_decode($postData, true);
+
+// The same resolution the cron does, so the button tests what will actually
+// be sent: an account with no server of its own is tested against the instance
+// server, not told to fill the field in.
+$ntfySettings = wallos_ntfy_settings($db, $data["host"] ?? '', $data["headers"] ?? '');
+$data["host"] = $ntfySettings['host'];
+$data["headers"] = $ntfySettings['headers'];
 
 if (
     !isset($data["host"]) || $data["host"] == "" ||
@@ -19,13 +28,7 @@ if (
 } else {
     $host = rtrim($data["host"], '/');
     $topic = $data["topic"];
-    $headers = json_decode($data["headers"], true);
-    if ($headers === null) {
-        $headers = [];
-    }
-    $customheaders = array_map(function ($key, $value) {
-        return "$key: $value";
-    }, array_keys($headers), $headers);
+    $customheaders = webhook_custom_headers($data["headers"]);
 
     $url = rtrim($host, '/') . '/' . ltrim($topic, '/');
     $ignore_ssl = $data["ignore_ssl"];
@@ -58,6 +61,8 @@ if (
     curl_setopt($ch, CURLOPT_POSTFIELDS, $message);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $customheaders);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
     if ($ignore_ssl) {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);

@@ -3,6 +3,7 @@
 require_once '../../includes/connect_endpoint.php';
 require_once '../../includes/validate_endpoint.php';
 require_once '../../includes/ssrf_helper.php';
+require_once '../../includes/webhook_headers.php';
 
 // Variables available: {{days_until}}, {{subscription_name}}, {{subscription_price}}, {{subscription_currency}}, {{subscription_category}}, {{subscription_date}}, {{subscription_payer}}, {{subscription_days_until_payment}}, {{subscription_notes}}, {{subscription_url}}
 $fakeSubscription = [
@@ -57,7 +58,7 @@ if (
         $payload = str_replace($placeholder, $value, $payload);
     }
 
-    $customheaders = json_decode($data["customheaders"], true);
+    $customheaders = webhook_headers_with_content_type(webhook_custom_headers($data["customheaders"]), $payload);
     $ignore_ssl = $data["ignore_ssl"];
 
     $ch = curl_init();
@@ -72,6 +73,8 @@ if (
         curl_setopt($ch, CURLOPT_HTTPHEADER, $customheaders);
     }
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
     if ($ignore_ssl) {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);

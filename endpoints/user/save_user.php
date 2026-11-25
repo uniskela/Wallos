@@ -2,6 +2,9 @@
 require_once '../../includes/connect_endpoint.php';
 require_once '../../includes/inputvalidation.php';
 require_once '../../includes/validate_endpoint.php';
+require_once '../../includes/frankfurter.php';
+require_once '../../includes/allratestoday.php';
+require_once '../../includes/default_names.php';
 
 if (!file_exists('../../images/uploads/logos')) {
     mkdir('../../images/uploads/logos', 0777, true);
@@ -38,7 +41,23 @@ function update_exchange_rate($db, $userId)
             $mainCurrencyCode = $row['code'];
             $mainCurrencyId = $row['main_currency'];
 
-            if ($provider === 1) {
+            if ((int) $provider === 2) {
+                // frankfurter.dev publishes the ECB reference rates without an
+                // account, and prices in any currency it lists, so it is asked
+                // in the user's own main currency and the conversion below has
+                // nothing left to do. No key, no header, and https, because
+                // there is no account behind it to authenticate.
+                //
+                // The helper answers in the same {"rates": ...} shape the two
+                // providers below do, so everything after this branch is
+                // unchanged.
+                $apiData = frankfurter_latest_rates($mainCurrencyCode, $codes);
+            } elseif ((int) $provider === 3) {
+                // allratestoday.com serves the same ECB table, also without an
+                // account, rebased to the main currency on its side. Same
+                // {"rates": ...} shape back, so nothing after here changes.
+                $apiData = allratestoday_latest_rates($mainCurrencyCode, $codes);
+            } elseif ($provider === 1) {
                 $api_url = "https://api.apilayer.com/fixer/latest?base=EUR&symbols=" . $codes;
                 $context = stream_context_create([
                     'http' => [
@@ -47,14 +66,22 @@ function update_exchange_rate($db, $userId)
                     ]
                 ]);
                 $response = file_get_contents($api_url, false, $context);
+                $apiData = json_decode($response, true);
             } else {
                 $api_url = "http://data.fixer.io/api/latest?access_key=" . $apiKey . "&base=EUR&symbols=" . $codes;
                 $response = file_get_contents($api_url);
+                $apiData = json_decode($response, true);
             }
 
-            $apiData = json_decode($response, true);
-
-            $mainCurrencyToEUR = $apiData['rates'][$mainCurrencyCode];
+            if ((int) $provider === 2 || (int) $provider === 3) {
+                // The answer already is in the main currency, so there is
+                // nothing to divide through by. The loop below still writes the
+                // main currency's own row as 1.0, which is a rule of this
+                // application rather than a number read out of a response.
+                $mainCurrencyToEUR = 1.0;
+            } else {
+                $mainCurrencyToEUR = $apiData['rates'][$mainCurrencyCode];
+            }
 
             if ($apiData !== null && isset($apiData['rates'])) {
                 foreach ($apiData['rates'] as $currencyCode => $rate) {
@@ -98,12 +125,13 @@ function update_exchange_rate($db, $userId)
 
 $demoMode = getenv('DEMO_MODE');
 
-$query = "SELECT main_currency FROM user WHERE id = :userId";
+$query = "SELECT main_currency, language FROM user WHERE id = :userId";
 $stmt = $db->prepare($query);
 $stmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
 $result = $stmt->execute();
 $row = $result->fetchArray(SQLITE3_ASSOC);
 $mainCurrencyId = $row['main_currency'];
+$storedLanguage = $row['language'] ?? 'en';
 
 function sanitizeFilename($filename)
 {
@@ -266,6 +294,22 @@ if (
 
     if (isset($_POST['password']) && $_POST['password'] != "" && !$demoMode) {
         $password = $_POST['password'];
+
+        // Changing the password takes the current one, so a session or a
+        // remember-me cookie that someone else got hold of cannot be turned
+        // into a permanent takeover.
+        $currentPassword = (string) ($_POST['current_password'] ?? '');
+        $stmt = $db->prepare("SELECT password FROM user WHERE id = :userId");
+        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        $storedRow = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        if (!$storedRow || $currentPassword === '' || !password_verify($currentPassword, $storedRow['password'])) {
+            echo json_encode([
+                "success" => false,
+                "message" => translate('current_password_incorrect', $i18n)
+            ]);
+            exit();
+        }
+
         if (isset($_POST['confirm_password'])) {
             $confirm = $_POST['confirm_password'];
             if ($password != $confirm) {
@@ -308,6 +352,17 @@ if (
 
     $result = $stmt->execute();
 
+    if ($result && isset($_POST['password']) && $_POST['password'] != "" && !$demoMode) {
+        // A new password ends every other remember-me login. The one this
+        // browser is using is kept so the person who just changed it is not
+        // signed out.
+        $keepToken = (string) ($_SESSION['token'] ?? '');
+        $stmt = $db->prepare("DELETE FROM login_tokens WHERE user_id = :userId AND token != :token");
+        $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+        $stmt->bindValue(':token', $keepToken, SQLITE3_TEXT);
+        $stmt->execute();
+    }
+
     if ($result) {
         $cookieExpire = time() + (30 * 24 * 60 * 60);
         $oldLanguage = isset($_COOKIE['language']) ? $_COOKIE['language'] : "en";
@@ -325,6 +380,10 @@ if (
         if ($main_currency != $mainCurrencyId) {
             update_exchange_rate($db, $userId);
         }
+
+        // The names this account was seeded with follow the language it just
+        // chose, as far as they are still the seeded ones.
+        localize_default_names_on_language_change($db, $userId, $storedLanguage, $language);
 
         $reload = $oldLanguage != $language;
 

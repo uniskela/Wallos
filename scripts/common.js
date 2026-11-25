@@ -1,4 +1,54 @@
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Chrome on Android opens its "Touch to Search" panel when a tap on plain text
+// is not acted on by the page, and most of Wallos is plain text (headings,
+// labels, card text). Chrome treats a tap as handled when the page touches the
+// DOM while handling it, so every click marks a hidden element.
+(function () {
+  const tapHandledMarker = document.createElement('span');
+  tapHandledMarker.hidden = true;
+  tapHandledMarker.setAttribute('aria-hidden', 'true');
+
+  const attachMarker = () => document.body.appendChild(tapHandledMarker);
+  if (document.body) {
+    attachMarker();
+  } else {
+    document.addEventListener('DOMContentLoaded', attachMarker);
+  }
+
+  document.addEventListener('click', () => tapHandledMarker.classList.add('tap-handled'));
+})();
+
 let isDropdownOpen = false;
+
+// Shared loading/empty/error states for the logo & payment icon search popups
+function showSearchState(container, state) {
+  if (state === 'loading') {
+    container.innerHTML = '<div class="search-state"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+    return;
+  }
+
+  const isError = state === 'error';
+  const icon = isError ? 'fa-circle-exclamation' : 'fa-magnifying-glass';
+  const message = isError
+    ? translate('error_fetching_image_results').replace(/:\s*$/, '')
+    : translate('no_results_found');
+
+  const stateElement = document.createElement('div');
+  stateElement.className = 'search-state' + (isError ? ' error' : '');
+  stateElement.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+  stateElement.appendChild(document.createTextNode(message));
+
+  container.innerHTML = '';
+  container.appendChild(stateElement);
+}
 
 function toggleDropdown() {
   const dropdown = document.querySelector('.dropdown');
@@ -85,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.cookie = `inUseTheme=${themePreference}; expires=Fri, 31 Dec 9999 23:59:59 GMT; SameSite=Lax`;
     const themeColorMetaTag = document.querySelector('meta[name="theme-color"]');
-    themeColorMetaTag.setAttribute('content', themePreference === 'dark' ? '#222222' : '#FFFFFF');
+    themeColorMetaTag.setAttribute('content', themePreference === 'dark' ? '#12151C' : '#FFFFFF');
   }
 
   document.addEventListener('mousedown', function (event) {

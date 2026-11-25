@@ -2,8 +2,11 @@
 
 require_once 'includes/header.php';
 require_once 'includes/getdbkeys.php';
+require_once 'includes/logo_theme_variant.php';
 
 include_once 'includes/list_subscriptions.php';
+require_once 'includes/subscription_payers.php';
+require_once 'includes/subscription_categories.php';
 
 $sort = "next_payment";
 $sortOrder = $sort;
@@ -40,27 +43,24 @@ $sql = "SELECT * FROM subscriptions WHERE user_id = :userId";
 
 if (isset($_GET['member'])) {
   $memberIds = explode(',', $_GET['member']);
-  $placeholders = array_map(function ($key) {
-    return ":member{$key}";
-  }, array_keys($memberIds));
-
-  $sql .= " AND payer_user_id IN (" . implode(',', $placeholders) . ")";
-
-  foreach ($memberIds as $key => $memberId) {
-    $params[":member{$key}"] = $memberId;
-  }
+  $sql .= " AND " . payerFilterCondition($memberIds, $params);
 }
 
 if (isset($_GET['category'])) {
   $categoryIds = explode(',', $_GET['category']);
+  $sql .= " AND " . categoryFilterCondition($categoryIds, $params);
+}
+
+if (isset($_GET['folder'])) {
+  $folderIds = explode(',', $_GET['folder']);
   $placeholders = array_map(function ($key) {
-    return ":category{$key}";
-  }, array_keys($categoryIds));
+    return ":folder{$key}";
+  }, array_keys($folderIds));
 
-  $sql .= " AND category_id IN (" . implode(',', $placeholders) . ")";
+  $sql .= " AND folder_id IN (" . implode(',', $placeholders) . ")";
 
-  foreach ($categoryIds as $key => $categoryId) {
-    $params[":category{$key}"] = $categoryId;
+  foreach ($folderIds as $key => $folderId) {
+    $params[":folder{$key}"] = $folderId;
   }
 }
 
@@ -124,28 +124,44 @@ if ($result) {
   }
 }
 
+$payersBySubscription = getPayersBySubscription($db, $subscriptions);
+$categoriesBySubscription = getCategoriesBySubscription($db, $subscriptions);
+
 foreach ($subscriptions as $subscription) {
-  $memberId = $subscription['payer_user_id'];
-  $members[$memberId]['count']++;
-  $categoryId = $subscription['category_id'];
-  $categories[$categoryId]['count']++;
+  foreach ($payersBySubscription[$subscription['id']] ?? [] as $memberId) {
+    if (isset($members[$memberId])) {
+      $members[$memberId]['count']++;
+    }
+  }
+  foreach ($categoriesBySubscription[$subscription['id']] ?? [] as $categoryId) {
+    if (isset($categories[$categoryId])) {
+      $categories[$categoryId]['count']++;
+    }
+  }
   $paymentMethodId = $subscription['payment_method_id'];
-  $payment_methods[$paymentMethodId]['count']++;
+  if (isset($payment_methods[$paymentMethodId ?? ""])) {
+    $payment_methods[$paymentMethodId ?? ""]['count']++;
+  }
 }
 
 if ($sortOrder == "category_id") {
   usort($subscriptions, function ($a, $b) use ($categories) {
-    return $categories[$a['category_id']]['order'] - $categories[$b['category_id']]['order'];
+    return ($categories[$a['category_id'] ?? ""]['order'] ?? PHP_INT_MAX) <=> ($categories[$b['category_id'] ?? ""]['order'] ?? PHP_INT_MAX);
   });
 }
 
 if ($sortOrder == "payment_method_id") {
   usort($subscriptions, function ($a, $b) use ($payment_methods) {
-    return $payment_methods[$a['payment_method_id']]['order'] - $payment_methods[$b['payment_method_id']]['order'];
+    return ($payment_methods[$a['payment_method_id'] ?? ""]['order'] ?? PHP_INT_MAX) <=> ($payment_methods[$b['payment_method_id'] ?? ""]['order'] ?? PHP_INT_MAX);
   });
 }
 
+// Folder cards always show each folder's full totals, whatever the list filters are.
+$folderStats = calculateFolderStats($db, $userId, $folders, $mainCurrencyId);
+
 $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden";
+
+$subscriptionsView = (isset($_COOKIE['subscriptionsView']) && $_COOKIE['subscriptionsView'] === 'grid') ? 'grid' : 'list';
 ?>
 <style>
   .logo-preview:after {
@@ -155,11 +171,21 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
 
 <section class="contain">
   <header class="<?= $headerClass ?>" id="main-actions">
-    <button class="button" onClick="addSubscription()">
-      <i class="fa-solid fa-circle-plus"></i>
-      <?= translate('new_subscription', $i18n) ?>
-    </button>
+    <div class="main-actions-primary">
+      <button class="button secondary-button bulk-mode-button bulk-mode-button-mobile"
+        title="<?= translate('bulk_actions', $i18n) ?>" onClick="toggleBulkMode()">
+        <i class="fa-solid fa-square-check"></i>
+      </button>
+      <button class="button" onClick="addSubscription()">
+        <i class="fa-solid fa-circle-plus"></i>
+        <?= translate('new_subscription', $i18n) ?>
+      </button>
+    </div>
     <div class="top-actions">
+      <button class="button secondary-button mobile-search-toggle" id="mobile-search-toggle"
+        title="<?= translate('search', $i18n) ?>" onClick="toggleMobileSearch()">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
       <div class="search">
         <input type="text" autocomplete="off" name="search" id="search" placeholder="<?= translate('search', $i18n) ?>"
           onkeyup="searchSubscriptions()" />
@@ -181,9 +207,107 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
         </button>
         <?php include 'includes/sort_options.php'; ?>
       </div>
+
+      <div class="view-toggle" id="view-toggle">
+        <button type="button" class="view-toggle-button<?= $subscriptionsView === 'list' ? ' selected' : '' ?>"
+          id="view-list-button" title="<?= translate('list_view', $i18n) ?>" onClick="setSubscriptionsView('list')">
+          <i class="fa-solid fa-list"></i>
+        </button>
+        <button type="button" class="view-toggle-button<?= $subscriptionsView === 'grid' ? ' selected' : '' ?>"
+          id="view-grid-button" title="<?= translate('grid_view', $i18n) ?>" onClick="setSubscriptionsView('grid')">
+          <i class="fa-solid fa-table-cells-large"></i>
+        </button>
+      </div>
+
+      <button class="button secondary-button bulk-mode-button bulk-mode-button-desktop"
+        title="<?= translate('bulk_actions', $i18n) ?>" onClick="toggleBulkMode()">
+        <i class="fa-solid fa-square-check"></i>
+      </button>
     </div>
   </header>
-  <div class="subscriptions" id="subscriptions">
+  <div class="bulk-toolbar" id="bulk-toolbar">
+    <label class="bulk-select-all">
+      <input type="checkbox" id="bulk-select-all" onChange="toggleBulkSelectAll(this.checked)">
+      <?= translate('select_all', $i18n) ?>
+    </label>
+    <span id="bulk-selected-count"></span>
+    <select id="bulk-action" onChange="updateBulkActionValue()">
+      <option value=""><?= translate('select_action', $i18n) ?></option>
+      <option value="enable_notifications"><?= translate('bulk_enable_notifications', $i18n) ?></option>
+      <option value="disable_notifications"><?= translate('bulk_disable_notifications', $i18n) ?></option>
+      <option value="set_notify_days"><?= translate('set_notification_timing', $i18n) ?></option>
+      <option value="set_category"><?= translate('set_category', $i18n) ?></option>
+      <option value="set_payment_method"><?= translate('set_payment_method', $i18n) ?></option>
+      <option value="delete"><?= translate('delete', $i18n) ?></option>
+    </select>
+    <select id="bulk-notify-days" hidden>
+      <option value="-1"><?= translate('default_value_from_settings', $i18n) ?></option>
+      <option value="0"><?= translate('on_due_date', $i18n) ?></option>
+      <option value="1">1 <?= translate('day_before', $i18n) ?></option>
+      <?php
+      for ($i = 2; $i <= 180; $i++) {
+        ?>
+        <option value="<?= $i ?>"><?= $i ?> <?= translate('days_before', $i18n) ?></option>
+        <?php
+      }
+      ?>
+    </select>
+    <select id="bulk-category" hidden>
+      <?php
+      foreach ($categories as $category) {
+        ?>
+        <option value="<?= $category['id'] ?>"><?= htmlSafe($category['name']) ?></option>
+        <?php
+      }
+      ?>
+    </select>
+    <select id="bulk-payment-method" hidden>
+      <?php
+      foreach ($payment_methods as $payment) {
+        ?>
+        <option value="<?= $payment['id'] ?>"><?= htmlSafe($payment['name']) ?></option>
+        <?php
+      }
+      ?>
+    </select>
+    <button class="button mobile-grow" id="bulk-apply" onClick="applyBulkAction()" disabled><?= translate('apply', $i18n) ?></button>
+    <button class="button secondary-button mobile-grow" onClick="toggleBulkMode()"><?= translate('cancel', $i18n) ?></button>
+  </div>
+  <?php
+  if (count($folders) > 0) {
+    ?>
+    <div class="folder-cards" id="folder-cards">
+      <?php
+      foreach ($folders as $folder) {
+        $selectedClass = '';
+        if (isset($_GET['folder'])) {
+          $selectedFolderIds = explode(',', $_GET['folder']);
+          if (in_array($folder['id'], $selectedFolderIds)) {
+            $selectedClass = ' selected';
+          }
+        }
+        $folderMonthlyTotal = $folderStats[$folder['id']]['monthly_total'] ?? 0;
+        ?>
+        <button type="button" class="folder-card<?= $selectedClass ?>" data-folderid="<?= $folder['id'] ?>"
+          style="--folder-color: <?= htmlspecialchars($folder['color']) ?>">
+          <span class="folder-card-header">
+            <span class="folder-card-name"><?= htmlSafe($folder['name']) ?></span>
+            <span class="folder-card-check"><i class="fa-solid fa-circle-check"></i></span>
+          </span>
+          <span class="folder-card-meta"><?= $folderStats[$folder['id']]['count'] ?? 0 ?> <?= translate('subscriptions', $i18n) ?></span>
+          <span class="folder-card-total">
+            <?= formatPrice($folderMonthlyTotal, $currencies[$mainCurrencyId]['code'], $currencies) ?>
+            <span class="folder-card-total-period">/ <?= translate('per_month', $i18n) ?></span>
+          </span>
+        </button>
+        <?php
+      }
+      ?>
+    </div>
+    <?php
+  }
+  ?>
+  <div class="subscriptions<?= $subscriptionsView === 'grid' ? ' grid-view' : '' ?>" id="subscriptions">
     <?php
     $formatter = new IntlDateFormatter(
       'en', // Force English locale
@@ -202,6 +326,8 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
       $id = $subscription['id'];
       $print[$id]['id'] = $id;
       $print[$id]['logo'] = $subscription['logo'] != "" ? "images/uploads/logos/" . $subscription['logo'] : "";
+      $print[$id]['logo_text_color'] = $subscription['logo_text_color'] ?? null;
+      $print[$id]['logo_variant'] = !empty($subscription['logo_variant']) ? "images/uploads/logos/" . $subscription['logo_variant'] : null;
       $print[$id]['name'] = $subscription['name'];
       $cycle = $subscription['cycle'];
       $frequency = $subscription['frequency'];
@@ -214,15 +340,21 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
       $next_payment_timestamp = strtotime($subscription['next_payment']);
       $formatted_date = $formatter->format($next_payment_timestamp);
       $print[$id]['next_payment'] = $formatted_date;
-      $paymentIconFolder = (strpos($payment_methods[$paymentMethodId]['icon'], 'images/uploads/icons/') !== false) ? "" : "images/uploads/logos/";
-      $print[$id]['payment_method_icon'] = $paymentIconFolder . $payment_methods[$paymentMethodId]['icon'];
-      $print[$id]['payment_method_name'] = $payment_methods[$paymentMethodId]['name'];
+      $paymentIcon = $payment_methods[$paymentMethodId ?? ""]['icon'] ?? "";
+      $paymentIconFolder = (strpos($paymentIcon, 'images/uploads/icons/') !== false) ? "" : "images/uploads/logos/";
+      $print[$id]['payment_method_icon'] = $paymentIcon === "" ? "" : $paymentIconFolder . $paymentIcon;
+      $print[$id]['payment_method_name'] = $payment_methods[$paymentMethodId ?? ""]['name'] ?? "";
       $print[$id]['payment_method_id'] = $paymentMethodId;
       $print[$id]['category_id'] = $subscription['category_id'];
+      $print[$id]['category_ids'] = $categoriesBySubscription[$id] ?? [];
+      $print[$id]['folder_id'] = $subscription['folder_id'] ?? null;
       $print[$id]['payer_user_id'] = $subscription['payer_user_id'];
+      $print[$id]['payer_user_ids'] = $payersBySubscription[$id] ?? [];
       $print[$id]['price'] = floatval($subscription['price']);
+      $print[$id]['sort_price'] = getSortPrice($subscription['price'], $subscription['currency_id'], $mainCurrencyId, $cycle, $frequency, $settings, $db);
       $print[$id]['progress'] = getSubscriptionProgress($cycle, $frequency, $subscription['next_payment']);
       $print[$id]['inactive'] = $subscription['inactive'];
+      $print[$id]['paid_this_cycle'] = isPaidThisCycle($subscription['paid_at'] ?? null, $cycle, $frequency, $subscription['next_payment']);
       $print[$id]['url'] = $subscription['url'];
       $print[$id]['notes'] = $subscription['notes'];
       $print[$id]['replacement_subscription_id'] = $subscription['replacement_subscription_id'];
@@ -252,8 +384,20 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
     }
 
     if (isset($print)) {
-      printSubscriptions($print, $sort, $categories, $members, $i18n, $colorTheme, "", $settings['disabledToBottom'], $settings['mobileNavigation'], $settings['showSubscriptionProgress'], $currencies, $lang);
+      printSubscriptions($print, $sort, $categories, $folders, $members, $i18n, $colorTheme, "", $settings['disabledToBottom'], $settings['mobileNavigation'], $settings['showSubscriptionProgress'], $currencies, $lang);
     }
+
+    $googleSearchEnabled = false;
+    if ($db->querySingle("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='google_search'") > 0) {
+      $googleSearchStmt = $db->prepare("SELECT COUNT(*) AS count FROM google_search WHERE user_id = :userId AND api_key != ''");
+      $googleSearchStmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+      $googleSearchResult = $googleSearchStmt->execute();
+      if ($googleSearchResult) {
+        $googleSearchRow = $googleSearchResult->fetchArray(SQLITE3_ASSOC);
+        $googleSearchEnabled = $googleSearchRow && $googleSearchRow['count'] > 0;
+      }
+    }
+
     $db->close();
 
     if (count($subscriptions) == 0) {
@@ -296,11 +440,27 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
         <i class="fa-solid fa-magnifying-glass"></i>
       </div>
       <input type="hidden" id="id" name="id">
-      <div id="logo-search-results" class="logo-search">
+      <div class="logo-search-backdrop" id="logo-search-backdrop" onClick="closeLogoSearch()"></div>
+      <div id="logo-search-results" class="logo-search"<?= !empty($googleSearchEnabled) ? ' data-google-search="1"' : '' ?>>
+        <button type="button" class="close-logo-search" onClick="closeLogoSearch()" title="<?= translate('cancel', $i18n) ?>">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
         <header>
-          <?= translate('web_search', $i18n) ?>
-          <span class="fa-solid fa-xmark close-logo-search" onClick="closeLogoSearch()"></span>
+          <h3 id="logo-search-title" data-title="<?= translate('web_search', $i18n) ?>">
+            <?= translate('web_search', $i18n) ?>
+          </h3>
         </header>
+        <div class="logo-search-controls">
+          <div class="logo-search-query">
+            <input type="text" id="logo-search-query" autocomplete="off" inputmode="search"
+              placeholder="<?= translate('search_logo', $i18n) ?>"
+              aria-label="<?= translate('search_logo', $i18n) ?>">
+            <button type="button" id="logo-search-submit" title="<?= translate('search', $i18n) ?>">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+          </div>
+          <div id="logo-search-nav" class="logo-search-nav"></div>
+        </div>
         <div id="logo-search-images"></div>
       </div>
     </div>
@@ -395,7 +555,7 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
             foreach ($payment_methods as $payment) {
               ?>
               <option value="<?= $payment['id'] ?>">
-                <?= $payment['name'] ?>
+                <?= htmlSafe($payment['name']) ?>
               </option>
               <?php
             }
@@ -403,34 +563,76 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
           </select>
         </div>
         <div class="split50">
-          <label for="payer_user"><?= translate('paid_by', $i18n) ?></label>
-          <select id="payer_user" name="payer_user_id">
-            <?php
-            foreach ($members as $member) {
-              ?>
-              <option value="<?= $member['id'] ?>"><?= $member['name'] ?></option>
+          <label for="payer_user_toggle"><?= translate('paid_by', $i18n) ?></label>
+          <div class="multi-select" id="payer_user_select" data-placeholder="<?= translate('none', $i18n) ?>">
+            <button type="button" class="multi-select-toggle" id="payer_user_toggle" aria-haspopup="listbox"
+              aria-expanded="false" aria-controls="payer_user_options">
+              <span class="multi-select-label"></span>
+            </button>
+            <ul class="multi-select-options" id="payer_user_options" role="listbox" aria-multiselectable="true"
+              aria-labelledby="payer_user_toggle" tabindex="-1" hidden>
               <?php
-            }
-            ?>
-          </select>
+              foreach ($members as $member) {
+                ?>
+                <li role="option" aria-selected="false" data-value="<?= $member['id'] ?>">
+                  <span class="multi-select-check"></span>
+                  <span class="multi-select-name"><?= htmlSafe($member['name']) ?></span>
+                </li>
+                <?php
+              }
+              ?>
+            </ul>
+            <input type="hidden" name="payer_user_id" id="payer_user" value="">
+          </div>
         </div>
       </div>
     </div>
 
     <div class="form-group">
-      <label for="category"><?= translate('category', $i18n) ?></label>
-      <select id="category" name="category_id">
-        <?php
-        foreach ($categories as $category) {
-          ?>
-          <option value="<?= $category['id'] ?>">
-            <?= $category['name'] ?>
-          </option>
+      <label for="category_toggle"><?= translate('category', $i18n) ?></label>
+      <div class="multi-select" id="category_select" data-placeholder="<?= translate('none', $i18n) ?>">
+        <button type="button" class="multi-select-toggle" id="category_toggle" aria-haspopup="listbox"
+          aria-expanded="false" aria-controls="category_options">
+          <span class="multi-select-label"></span>
+        </button>
+        <ul class="multi-select-options" id="category_options" role="listbox" aria-multiselectable="true"
+          aria-labelledby="category_toggle" tabindex="-1" hidden>
           <?php
-        }
-        ?>
-      </select>
+          foreach ($categories as $category) {
+            ?>
+            <li role="option" aria-selected="false" data-value="<?= $category['id'] ?>">
+              <span class="multi-select-check"></span>
+              <span class="multi-select-name"><?= htmlSafe($category['name']) ?></span>
+            </li>
+            <?php
+          }
+          ?>
+        </ul>
+        <input type="hidden" name="category_id" id="category" value="">
+      </div>
     </div>
+
+    <?php
+    if (count($folders) > 0) {
+      ?>
+      <div class="form-group">
+        <label for="folder"><?= translate('folder', $i18n) ?></label>
+        <select id="folder" name="folder_id">
+          <option value="0"><?= translate('no_folder', $i18n) ?></option>
+          <?php
+          foreach ($folders as $folder) {
+            ?>
+            <option value="<?= $folder['id'] ?>">
+              <?= htmlSafe($folder['name']) ?>
+            </option>
+            <?php
+          }
+          ?>
+        </select>
+      </div>
+      <?php
+    }
+    ?>
 
     <div class="form-group-inline grow" id="notifications-group">
       <input type="checkbox" id="notifications" name="notifications" onchange="toggleNotificationDays()">
@@ -468,7 +670,23 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
     </div>
 
     <div class="form-group">
-      <input type="text" id="notes" name="notes" autocomplete="off" placeholder="<?= translate('notes', $i18n) ?>">
+      <div class="notes-editor">
+        <div class="notes-toolbar">
+          <button type="button" class="notes-toolbar-button" title="<?= translate('notes_bold', $i18n) ?>" onClick="applyNotesMarkdown('bold')">
+            <i class="fa-solid fa-bold"></i>
+          </button>
+          <button type="button" class="notes-toolbar-button" title="<?= translate('notes_italic', $i18n) ?>" onClick="applyNotesMarkdown('italic')">
+            <i class="fa-solid fa-italic"></i>
+          </button>
+          <button type="button" class="notes-toolbar-button" title="<?= translate('notes_list', $i18n) ?>" onClick="applyNotesMarkdown('list')">
+            <i class="fa-solid fa-list-ul"></i>
+          </button>
+          <button type="button" class="notes-toolbar-button" title="<?= translate('notes_link', $i18n) ?>" onClick="applyNotesMarkdown('link')">
+            <i class="fa-solid fa-link"></i>
+          </button>
+        </div>
+        <textarea id="notes" name="notes" class="thin" autocomplete="off" placeholder="<?= translate('notes', $i18n) ?>"></textarea>
+      </div>
     </div>
 
     <div class="form-group">
@@ -511,6 +729,8 @@ $headerClass = count($subscriptions) > 0 ? "main-actions" : "main-actions hidden
     </div>
   </form>
 </section>
+
+<?php require_once 'includes/subscription_details_popup.php'; ?>
 <script src="scripts/subscriptions.js?<?= $version ?>"></script>
 <?php
 if (isset($_GET['add'])) {

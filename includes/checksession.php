@@ -1,4 +1,6 @@
 <?php
+require_once 'remember_me.php';
+
 // Handle OIDC first
 $secondsInMonth = 30 * 24 * 60 * 60;
 if (session_status() === PHP_SESSION_NONE) {
@@ -9,6 +11,8 @@ if (session_status() === PHP_SESSION_NONE) {
     ]);
     session_start();
 }
+
+require_once __DIR__ . '/oidc/session_persist.php';
 
 if (isset($_GET['code']) && isset($_GET['state'])) {
     // This request is coming from the OIDC login flow
@@ -23,12 +27,25 @@ if (isset($_GET['code']) && isset($_GET['state'])) {
         !hash_equals($expectedState, $state)
     ) {
         unset($_SESSION['oidc_state']);
+        oidc_persist_session();
         $db->close();
         header("Location: login.php?error=oidc_invalid_state");
         exit();
     }
 
+    // Removed, and written to disk before the exchange begins (#1239).
+    //
+    // The token exchange below takes a second or two, and PHP writes the
+    // session at the end of the request - by which time oidc_login.php has
+    // called session_regenerate_id(true), which deletes the file this removal
+    // would have been written to. A second request carrying the same callback,
+    // which is what a browser on an unstable connection produces, waits on the
+    // session lock and is then handed the state as it stood before, passes the
+    // check above, and redeems the same authorization code again. The provider
+    // refuses it, and the person is shown a failure for a login that
+    // succeeded.
     unset($_SESSION['oidc_state']);
+    oidc_persist_session();
 
     require_once 'includes/oidc/handle_oidc_callback.php';
 
@@ -54,74 +71,26 @@ if (isset($_GET['code']) && isset($_GET['state'])) {
             $userData['avatar'] = "0";
         }
     } else {
-
-        if (isset($_COOKIE['wallos_login'])) {
-            $cookie = explode('|', $_COOKIE['wallos_login'], 3);
-            $username = $cookie[0];
-            $token = $cookie[1];
-            $main_currency = $cookie[2];
-
-            $sql = "SELECT * FROM user WHERE username = :username";
-            $stmt = $db->prepare($sql);
-            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $result = $stmt->execute();
-
-            if ($result) {
-                $userData = $result->fetchArray(SQLITE3_ASSOC);
-                if (!isset($userData['id'])) {
-                    $db->close();
-                    header("Location: logout.php");
-                    exit();
-                }
-
-                if ($userData['avatar'] == "") {
-                    $userData['avatar'] = "0";
-                }
-                $userId = $userData['id'];
-                $main_currency = $userData['main_currency'];
-
-                $adminQuery = "SELECT login_disabled FROM admin";
-                $adminResult = $db->query($adminQuery);
-                $adminRow = $adminResult->fetchArray(SQLITE3_ASSOC);
-                if ($adminRow['login_disabled'] == 1) {
-                    $sql = "SELECT * FROM login_tokens WHERE user_id = :userId";
-                    $stmt = $db->prepare($sql);
-                    $stmt->bindParam(':userId', $userId, SQLITE3_TEXT);
-                } else {
-                    $sql = "SELECT * FROM login_tokens WHERE user_id = :userId AND token = :token";
-                    $stmt = $db->prepare($sql);
-                    $stmt->bindParam(':userId', $userId, SQLITE3_TEXT);
-                    $stmt->bindParam(':token', $token, SQLITE3_TEXT);
-                }
-                $result = $stmt->execute();
-                $row = $result->fetchArray(SQLITE3_ASSOC);
-
-                if ($row != false) {
-                    session_regenerate_id(true);
-                    $_SESSION['username'] = $username;
-                    $_SESSION['token'] = $token;
-                    $_SESSION['loggedin'] = true;
-                    $_SESSION['main_currency'] = $main_currency;
-                    $_SESSION['userId'] = $userId;
-                } else {
-                    $db->close();
-                    header("Location: logout.php");
-                    exit();
-                }
-            } else {
-                $db->close();
-                header("Location: logout.php");
-                exit();
-            }
-
-
-        } else {
+        if (!isset($_COOKIE['wallos_login'])) {
             $db->close();
             header("Location: login.php");
             exit();
         }
+
+        $userData = restoreSessionFromRememberMeCookie($db);
+        if ($userData === false) {
+            $db->close();
+            header("Location: logout.php");
+            exit();
+        }
+
+        if ($userData['avatar'] == "") {
+            $userData['avatar'] = "0";
+        }
+        $userId = $userData['id'];
+        $main_currency = $userData['main_currency'];
     }
 }
 
 
-?>
+?>

@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/default_names.php'; ?>
 <div class="filtermenu-content">
   <?php
   if (count($members) > 1) {
@@ -18,7 +19,7 @@
             }
           }
           ?>
-          <div class="filter-item <?= $selectedClass ?>" data-memberid="<?= $member['id'] ?>"><?= $member['name'] ?>
+          <div class="filter-item <?= $selectedClass ?>" data-memberid="<?= $member['id'] ?>"><?= htmlSafe($member['name']) ?>
           </div>
           <?php
         }
@@ -35,11 +36,17 @@
       <div class="filter-title" onClick="toggleSubMenu('category')"><?= translate("category", $i18n) ?></div>
       <div class="filtermenu-submenu-content" id="filter-category">
         <?php
+        // A category still carrying its untouched default name is
+        // recognised against the account's own creation-language default,
+        // not a literal English string - #1216 gives every language its
+        // own default, so an account created in German never had an
+        // English name to match here.
+        $noCategoryDefaultName = default_no_category_name($userData['language'] ?? 'en');
         foreach ($categories as $category) {
           if ($category['count'] == 0) {
             continue;
           }
-          if ($category['name'] == "No category") {
+          if ($category['name'] === $noCategoryDefaultName) {
             $category['name'] = translate("no_category", $i18n);
           }
           $selectedClass = '';
@@ -51,7 +58,35 @@
           }
           ?>
           <div class="filter-item <?= $selectedClass ?>" data-categoryid="<?= $category['id'] ?>">
-            <?= $category['name'] ?>
+            <?= htmlSafe($category['name']) ?>
+          </div>
+          <?php
+        }
+        ?>
+      </div>
+    </div>
+    <?php
+  }
+  ?>
+  <?php
+  if (!empty($folders)) {
+    ?>
+    <div class="filtermenu-submenu">
+      <div class="filter-title" onClick="toggleSubMenu('folder')"><?= translate("folder", $i18n) ?></div>
+      <div class="filtermenu-submenu-content" id="filter-folder">
+        <?php
+        foreach ($folders as $folder) {
+          $selectedClass = '';
+          if (isset($_GET['folder'])) {
+            $folderIds = explode(',', $_GET['folder']);
+            if (in_array($folder['id'], $folderIds)) {
+              $selectedClass = 'selected';
+            }
+          }
+          ?>
+          <div class="filter-item <?= $selectedClass ?>" data-folderid="<?= $folder['id'] ?>">
+            <span class="folder-filter-dot" style="background-color: <?= htmlspecialchars($folder['color']) ?>"></span>
+            <?= htmlSafe($folder['name']) ?>
           </div>
           <?php
         }
@@ -81,7 +116,7 @@
           }
           ?>
           <div class="filter-item <?= $selectedClass ?>" data-paymentid="<?= $payment['id'] ?>">
-            <?= $payment['name'] ?>
+            <?= htmlSafe($payment['name']) ?>
           </div>
           <?php
         }
@@ -120,6 +155,14 @@
       <div class="filter-item capitalize" data-notificationtype="reminder"><?= translate("reminder", $i18n) ?></div>
       <div class="filter-item capitalize" data-notificationtype="cancellation"><?= translate("cancellation", $i18n) ?></div>
       <div class="filter-item capitalize" data-notificationtype="none"><?= translate("none", $i18n) ?></div>
+    </div>
+  </div>
+
+  <div class="filtermenu-submenu">
+    <div class="filter-title" onClick="toggleSubMenu('paid_status')"><?= translate("payment_status", $i18n) ?></div>
+    <div class="filtermenu-submenu-content" id="filter-paid_status">
+      <div class="filter-item capitalize" data-paidstatus="paid"><?= translate("paid", $i18n) ?></div>
+      <div class="filter-item capitalize" data-paidstatus="unpaid"><?= translate("unpaid", $i18n) ?></div>
     </div>
   </div>
 

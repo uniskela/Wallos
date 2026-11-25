@@ -1,5 +1,388 @@
 # Changelog
 
+## [5.11.3](https://github.com/ellite/Wallos/compare/v5.11.2...v5.11.3) (2026-11-20)
+
+
+### Bug Fixes
+
+* **security:** deny access to the database and temp folders on Apache ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+* **security:** fill managed SMTP fields in the test email only for the admin ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+* **security:** re-validate every redirect hop in the logo and payment searches ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+* **security:** require a login for the logo and payment search endpoints ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+* **security:** require the current password to change the account password ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+* **security:** revoke remember-me logins when the password changes or is reset ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+* **security:** throttle failed password logins ([b421041](https://github.com/ellite/Wallos/commit/b42104177bdbecda84d31c2d4e4b5a0f54218a5f))
+
+## [5.11.2](https://github.com/ellite/Wallos/compare/v5.11.1...v5.11.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* validate subscription frequency and harden payment loops against infinite execution ([1c470f8](https://github.com/ellite/Wallos/commit/1c470f8c99648fd4633e94108ceae268dddc5a76))
+
+## [5.11.1](https://github.com/ellite/Wallos/compare/v5.11.0...v5.11.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* escape folder names on output and let the Telegram test use the instance bot ([259b12e](https://github.com/ellite/Wallos/commit/259b12e862f20f2253cedbfa73bbacc7ed5b6b14))
+
+## [5.11.0](https://github.com/ellite/Wallos/compare/v5.10.4...v5.11.0) (2026-11-07)
+
+
+### Features
+
+* add mark/unmark paid buttons to subscriptions ([#1139](https://github.com/ellite/Wallos/issues/1139), thanks @NodeJSmith) ([e9c9141](https://github.com/ellite/Wallos/commit/e9c91411130b1903de9f1a224b563e4ce0d3fe08))
+* colored folders to group subscriptions ([#1156](https://github.com/ellite/Wallos/issues/1156), thanks @Itaromi) ([591112b](https://github.com/ellite/Wallos/commit/591112b505630943419b39b98335f11ae5d30321))
+* **currency:** add allratestoday.com as a second exchange-rate provider ([#1291](https://github.com/ellite/Wallos/issues/1291), thanks [@cahthuranag](https://github.com/cahthuranag)) ([cc58669](https://github.com/ellite/Wallos/commit/cc58669f1b15b22cd3dfe7db9d7607244208e77e))
+* **notifications:** one Gotify server for the installation, tokens stay personal ([#1234](https://github.com/ellite/Wallos/issues/1234), thanks [@thorstenhornung1](https://github.com/thorstenhornung1)) ([9975646](https://github.com/ellite/Wallos/commit/99756465c8cc023c2aaaaf7920005f9ac713253d))
+* **notifications:** one ntfy server for the installation, topics stay personal ([#1233](https://github.com/ellite/Wallos/issues/1233), thanks [@thorstenhornung1](https://github.com/thorstenhornung1)) ([fcfd3a0](https://github.com/ellite/Wallos/commit/fcfd3a03c811a7031ab3776f4a536defb6e6ff73))
+* **notifications:** one Pushover application for the installation, user keys stay personal ([#1235](https://github.com/ellite/Wallos/issues/1235), thanks [@thorstenhornung1](https://github.com/thorstenhornung1)) ([7f9aed8](https://github.com/ellite/Wallos/commit/7f9aed818ff62d74cfd43f0d02b563fb831b6ff7))
+* **notifications:** one Telegram bot for the installation, chat ids stay personal ([#1232](https://github.com/ellite/Wallos/issues/1232), thanks [@thorstenhornung1](https://github.com/thorstenhornung1)) ([f17b36e](https://github.com/ellite/Wallos/commit/f17b36ebe195d682af68ae839d2d995b6ee8be7b))
+* scope statistics and calendar to the user's pay period ([#1213](https://github.com/ellite/Wallos/issues/1213), thanks [@gwpreston](https://github.com/gwpreston)) ([89a0347](https://github.com/ellite/Wallos/commit/89a034774789a5775287551c4087cacc2a7aac8c))
+
+
+### Bug Fixes
+
+* add all missing translation keys ([aafe406](https://github.com/ellite/Wallos/commit/aafe4068f580f384351c23a7ec612afc8774a901))
+* add missing translation keys for the instance Gotify server ([c53c49b](https://github.com/ellite/Wallos/commit/c53c49b58a467ee2cb84e7787e4540c76644ddd3))
+* add missing translation keys for the instance ntfy server ([85f37fd](https://github.com/ellite/Wallos/commit/85f37fd2281765064bf8160dbd0392ef442faa68))
+* add missing translation keys for the instance Pushover application ([38f75ca](https://github.com/ellite/Wallos/commit/38f75cac201845c3c9ff62510123e220b588c774))
+* add missing translation keys for the pay period and the instance Telegram bot ([cb2011b](https://github.com/ellite/Wallos/commit/cb2011befa57d2f22e0829bdb38b953e87f6cb95))
+* add missing translation keys for the renewal notifications ([df57429](https://github.com/ellite/Wallos/commit/df574290de1f35aa203b3e8ced8508fa0b5a679e))
+* add the missing delete and backup messages and fix the api_key_saved typo ([1fa38f0](https://github.com/ellite/Wallos/commit/1fa38f00e2e5b3f1e1e781d0497748fcdbed26b7))
+* **admin:** group the instance notification settings in an accordion ([10f7993](https://github.com/ellite/Wallos/commit/10f7993d64ec0213c9d31c5e5b967e4a87f30167))
+* continue notifications after SMTP exceptions ([#1281](https://github.com/ellite/Wallos/issues/1281), thanks [@rmtshnik](https://github.com/rmtshnik)) ([e7a4e1a](https://github.com/ellite/Wallos/commit/e7a4e1afedb70b44e7beaa753935afd773b9ad4d))
+* count whole payments in amount due this month ([#1285](https://github.com/ellite/Wallos/issues/1285), thanks [@ganeshmshetty](https://github.com/ganeshmshetty)) ([9ceeb32](https://github.com/ellite/Wallos/commit/9ceeb329078fb89f16dc1f02c85c89b4487ac347))
+* create the database when the file exists but has no tables ([#1302](https://github.com/ellite/Wallos/issues/1302)) ([3cfe578](https://github.com/ellite/Wallos/commit/3cfe578885a663c88f8d7186b6e8495d66299820))
+* **folders:** delete a user's folders together with the account ([7b8f29e](https://github.com/ellite/Wallos/commit/7b8f29eebb57de9c24e525ef6bcd59081647e8b1))
+* **folders:** keep folder cards in step with AJAX list refresh ([e62a047](https://github.com/ellite/Wallos/commit/e62a04720921879ba6b1d906bf4b70d6e304543c))
+* **folders:** show full folder totals on page load too ([41b1a77](https://github.com/ellite/Wallos/commit/41b1a77f52e3215a130480c19cb57078cbff4bb9))
+* **notifications:** translate renewal notifications into each user's language ([#1280](https://github.com/ellite/Wallos/issues/1280), thanks @Hellraiser28) ([0012e3a](https://github.com/ellite/Wallos/commit/0012e3a75800c056edc72f2d6261e32a6d250732))
+* **notifications:** translate the cancellation notifications and the remaining titles ([3a56787](https://github.com/ellite/Wallos/commit/3a5678700f05b438ede15fe6c260585ef735794c))
+* **paid:** drop mark-as-paid from the flipped card, fix the swipe width and restyle the swipe button ([5e9bb76](https://github.com/ellite/Wallos/commit/5e9bb7642a6281c92d26378d0c94d2ffc50568fa))
+* **paid:** show the paid state and actions when the list refreshes through AJAX ([34b4106](https://github.com/ellite/Wallos/commit/34b4106b331ac82da147c5c6a82c991e77800e5b))
+* **paid:** use an outline icon for the swipe paid button ([62c93c5](https://github.com/ellite/Wallos/commit/62c93c5132cd06fd46ae4554ccbe4a7698753ce6))
+* **pwa:** don't pair a newer page with the old worker's cached assets ([#1279](https://github.com/ellite/Wallos/issues/1279), thanks [@iamvicliu](https://github.com/iamvicliu)) ([af86e18](https://github.com/ellite/Wallos/commit/af86e18cced5df590e04b1707d5fa76d04d3956e))
+* **ui:** remove the green and red hover effects from the subscription dropdown ([a449fe3](https://github.com/ellite/Wallos/commit/a449fe3691299cecbd96ba20f7186fa9a46ee619))
+
+## [5.10.4](https://github.com/ellite/Wallos/compare/v5.10.3...v5.10.4) (2026-11-01)
+
+
+### Bug Fixes
+
+* missing _ for save_user.php in profile.php  ([e0f2d1d](https://github.com/ellite/Wallos/commit/e0f2d1d05e9e7e919f13fba22a34d36174f26fa9))
+* **ui:** stop plain-text taps from opening Chrome's Touch to Search ([#1298](https://github.com/ellite/Wallos/issues/1298)) ([e0f2d1d](https://github.com/ellite/Wallos/commit/e0f2d1d05e9e7e919f13fba22a34d36174f26fa9))
+* **vuln:** stored XSS in statistics page names and chart legend ([#1298](https://github.com/ellite/Wallos/issues/1298)) ([e0f2d1d](https://github.com/ellite/Wallos/commit/e0f2d1d05e9e7e919f13fba22a34d36174f26fa9))
+* **vuln:** stored XSS in subscriptions list names, headings and filter menus ([#1298](https://github.com/ellite/Wallos/issues/1298)) ([e0f2d1d](https://github.com/ellite/Wallos/commit/e0f2d1d05e9e7e919f13fba22a34d36174f26fa9))
+
+## [5.10.3](https://github.com/ellite/Wallos/compare/v5.10.2...v5.10.3) (2026-10-31)
+
+
+### Bug Fixes
+
+* **vuln:** stored XSS in admin context via unescaped push-service response in sendnotifications.php ([#1295](https://github.com/ellite/Wallos/issues/1295)) ([693d867](https://github.com/ellite/Wallos/commit/693d8676f3e5b0c85e120fc5958ccb82f37ee89c))
+
+## [5.10.2](https://github.com/ellite/Wallos/compare/v5.10.1...v5.10.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **docker:** fall back to IPv4-only nginx when IPv6 is unavailable ([#1287](https://github.com/ellite/Wallos/issues/1287)) ([a41bae7](https://github.com/ellite/Wallos/commit/a41bae7acdeed1a42f67df1ea9b9e7a982da00e2))
+
+## [5.10.1](https://github.com/ellite/Wallos/compare/v5.10.0...v5.10.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **docker:** rebuild on php 8.3.36 to pick up the security release (CVE-2026-109618, CVE-2026-109619) ([a540a9e](https://github.com/ellite/Wallos/commit/a540a9e3146cdf689d88e2e5b2d2f8acbb1e064f))
+* **docker:** rebuild on php 8.3.36 to pick up the security release (CVE-2026-109618, CVE-2026-109619) ([9e560ed](https://github.com/ellite/Wallos/commit/9e560ed091035b9524aca28e4e6026b2a1bac8f9))
+
+## [5.10.0](https://github.com/ellite/Wallos/compare/v5.9.0...v5.10.0) (2026-10-17)
+
+
+### Features
+
+* **bulk:** polish the bulk toolbar and keep Apply disabled until it has something to apply ([29b5b5d](https://github.com/ellite/Wallos/commit/29b5b5d2a1e62ab97fbef0c817bf60e8e7037e55))
+
+
+### Bug Fixes
+
+* **bulk:** keep payer and category rows in step with bulk delete and set-category ([b3a4d98](https://github.com/ellite/Wallos/commit/b3a4d9879848e7d430d9f700fc2b8ec824dbab7c))
+* **i18n:** rename default names when switching between any two languages ([b3acdc0](https://github.com/ellite/Wallos/commit/b3acdc0672aea5fa73a960c2f6617ef68065812b))
+
+## [5.9.0](https://github.com/ellite/Wallos/compare/v5.8.4...v5.9.0) (2026-10-17)
+
+
+### Features
+
+* **subscriptions:** allow several categories per subscription ([d750eac](https://github.com/ellite/Wallos/commit/d750eacc6b6bb80bc25d365cd378671589d25ffb))
+* **subscriptions:** allow several payers per subscription ([faa0226](https://github.com/ellite/Wallos/commit/faa0226801ca6fc85326efa212c33c8f19525798))
+* **subscriptions:** show card actions as a 2x2 grid ([a224dd2](https://github.com/ellite/Wallos/commit/a224dd2b2dc332673c3043aeb1095a364e8a4302))
+
+
+### Bug Fixes
+
+* **pwa:** rename the static cache when a script or stylesheet changes ([1d37f89](https://github.com/ellite/Wallos/commit/1d37f898d458c97dee70c09767588a58e715af5b))
+* **stats:** drop point labels and dates from the cost trend graph ([3a1da1c](https://github.com/ellite/Wallos/commit/3a1da1c00677766201588cae7baa247b112a1934))
+
+## [5.8.4](https://github.com/ellite/Wallos/compare/v5.8.3...v5.8.4) (2026-10-17)
+
+
+### Bug Fixes
+
+* **i18n:** complete Arabic translation and plural "days before" label ([#1266](https://github.com/ellite/Wallos/issues/1266)) ([ff78a22](https://github.com/ellite/Wallos/commit/ff78a22b994b826bf4e5d2dcd7c5bd9322cd1e02))
+
+## [5.8.3](https://github.com/ellite/Wallos/compare/v5.8.2...v5.8.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* invalidate service worker cache on version update ([#1247](https://github.com/ellite/Wallos/issues/1247)) ([#1250](https://github.com/ellite/Wallos/issues/1250)) ([d2623b4](https://github.com/ellite/Wallos/commit/d2623b412032e9bd1ce35a3afefd8c85b3c7e127))
+
+## [5.8.2](https://github.com/ellite/Wallos/compare/v5.8.1...v5.8.2) (2026-09-27)
+
+
+### Bug Fixes
+
+* **auth:** enforce SSO-only server-side, not just in the UI (GHSA-vhv8-cw23-59xm) ([#1246](https://github.com/ellite/Wallos/issues/1246)) ([a81772e](https://github.com/ellite/Wallos/commit/a81772eb0bb0277744e2a9cba584afab21628500))
+* **subscriptions:** enforce foreign-key ownership on ([ba9973d](https://github.com/ellite/Wallos/commit/ba9973d9e2b38d16ccb44cc14ed1d1af9b4dfe3b))
+* **subscriptions:** enforce foreign-key ownership on subscription save (GHSA-797x-473j-px9p) ([a81772e](https://github.com/ellite/Wallos/commit/a81772eb0bb0277744e2a9cba584afab21628500))
+
+## [5.8.1](https://github.com/ellite/Wallos/compare/v5.8.0...v5.8.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* buttons position for push notifications ([#1226](https://github.com/ellite/Wallos/issues/1226)) ([9e2ad14](https://github.com/ellite/Wallos/commit/9e2ad14164d64e8bcdadefd1ac6fef79ad4e12e0))
+
+## [5.8.0](https://github.com/ellite/Wallos/compare/v5.7.1...v5.8.0) (2026-09-18)
+
+
+### Features
+
+* add push notifications ([ece43eb](https://github.com/ellite/Wallos/commit/ece43ebd507b85136045e1af03dda02515901235))
+* **admin:** let the deployment own the instance SMTP settings and the server URL ([1ea12e6](https://github.com/ellite/Wallos/commit/1ea12e69eb3c6986e335f704052ac63e01ffd14a))
+* **currency:** add frankfurter.dev as a provider that needs no account ([dd7cf87](https://github.com/ellite/Wallos/commit/dd7cf87d5a0bbca2d65d3c2e1a436ecf161a70df))
+
+
+### Bug Fixes
+
+* **admin:** let the SMTP test button see a managed password ([cbd4ec1](https://github.com/ellite/Wallos/commit/cbd4ec17a6c5d5b4a9be759e86eb84cf31067c42))
+* **categories:** recognise the no-category placeholder by language ([1f27e7a](https://github.com/ellite/Wallos/commit/1f27e7a7c47a3032dd54d4e65bb2ded3b41490f6))
+* **i18n:** a new account's categories are in the language it was created with ([9dd66f4](https://github.com/ellite/Wallos/commit/9dd66f4d07e5e74509636329df7fb9260f874248))
+* **i18n:** an account an identity provider creates is in the language it named ([5b3f445](https://github.com/ellite/Wallos/commit/5b3f44539a9b66c0a26cd6c01a85860f58fe6a31))
+* **notifications:** ask the SSRF check about the account, not the last payer ([4d24ccc](https://github.com/ellite/Wallos/commit/4d24cccd6db32c30ec0cd170e8a513b5f6572e0a))
+* **notifications:** keep a note that ends in a quotation mark from breaking the webhook payload ([864234f](https://github.com/ellite/Wallos/commit/864234f5a42653d4f5334307b37da1c218b05a41))
+* **push:** stop reloading the page to subscribe or remove a device ([b308da0](https://github.com/ellite/Wallos/commit/b308da007b0538d682943e7d73864ced6425887b))
+
+## [5.7.1](https://github.com/ellite/Wallos/compare/v5.7.0...v5.7.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* bump version ([6d6d1f0](https://github.com/ellite/Wallos/commit/6d6d1f08da33cf940a573c98f5aedf2dd62c4a07))
+* bump version ([d84fdd4](https://github.com/ellite/Wallos/commit/d84fdd4b3d2bf969b6e4259517b5f1d503cd750c))
+
+## [5.7.0](https://github.com/ellite/Wallos/compare/v5.6.0...v5.7.0) (2026-09-10)
+
+
+### Features
+
+* cancellation in dashboard & general statistics ([#1207](https://github.com/ellite/Wallos/issues/1207)) ([e38403d](https://github.com/ellite/Wallos/commit/e38403d920edd0cd6dfa2fc20f91c7160c888201))
+* support Markdown notes with safe rendering ([5a92009](https://github.com/ellite/Wallos/commit/5a92009ac96179a1d11944fb869483b351abefb3))
+
+
+### Bug Fixes
+
+* **pwa:** offline mode, icons and background ([5ffa841](https://github.com/ellite/Wallos/commit/5ffa8417293ded9b693633f5407f6dddc4868388))
+
+## [5.6.0](https://github.com/ellite/Wallos/compare/v5.5.1...v5.6.0) (2026-09-08)
+
+
+### Features
+
+* add Azerbaijani (az) localization ([#1201](https://github.com/ellite/Wallos/issues/1201)) ([6a740f8](https://github.com/ellite/Wallos/commit/6a740f8b338a0d3b33f1d8aa6557011ae9e50995))
+* make the dashboard upcoming payment count configurable ([#1191](https://github.com/ellite/Wallos/issues/1191)) ([4fc9310](https://github.com/ellite/Wallos/commit/4fc9310571655b636ed32dad302665ce0bb7e680)), closes [#1186](https://github.com/ellite/Wallos/issues/1186)
+
+
+### Bug Fixes
+
+* add missing language files to the service worker ([b1ba0d3](https://github.com/ellite/Wallos/commit/b1ba0d34a9311541bc0245d1efcb622a5d227a07))
+* **auth:** disable 2FA atomically instead of reporting success on a partial write ([#1193](https://github.com/ellite/Wallos/issues/1193)) ([45eb0a2](https://github.com/ellite/Wallos/commit/45eb0a260c5cc4f3e88dc73118dd223ee36b27fa))
+* **auth:** do not report 2FA as enabled when the enrolment did not complete ([#1194](https://github.com/ellite/Wallos/issues/1194)) ([89c97df](https://github.com/ellite/Wallos/commit/89c97df8b5bc97c9fe8f61a1719f57a56e925da4))
+* **auth:** do not report a password reset that did not happen ([#1195](https://github.com/ellite/Wallos/issues/1195)) ([6600c07](https://github.com/ellite/Wallos/commit/6600c0713f4841ef16224ff2bb9ee85cef9ffcdd))
+* **auth:** do not report an email as verified when the token was not consumed ([#1196](https://github.com/ellite/Wallos/issues/1196)) ([7a57ec1](https://github.com/ellite/Wallos/commit/7a57ec10741d6dd84c9d48c020b3756fdce508ed))
+* check the delete in delete-before-replace save pairs ([#1197](https://github.com/ellite/Wallos/issues/1197)) ([c0a2cb7](https://github.com/ellite/Wallos/commit/c0a2cb777d180749faf12440b95ac038946b4ad4))
+* cleanup unused logos when deleting or editing subscriptions ([20d23db](https://github.com/ellite/Wallos/commit/20d23db12eecfbe46aefb056a2308fd62d73b32e))
+* **currency:** skip an exchange rate refresh that already happened today ([#1199](https://github.com/ellite/Wallos/issues/1199)) ([54f822b](https://github.com/ellite/Wallos/commit/54f822b0e6ec36611feec543f2d51cc3b20ab909))
+* delete every table that belonged to an account on deletion ([#1192](https://github.com/ellite/Wallos/issues/1192)) ([df3e0bf](https://github.com/ellite/Wallos/commit/df3e0bf87708a75578623cbb7bc94dde7b57f107))
+* **payments:** report why a logo could not be fetched instead of "Unknown error" ([#1200](https://github.com/ellite/Wallos/issues/1200)) ([a0bf7e7](https://github.com/ellite/Wallos/commit/a0bf7e70fd15bf011007474fceba32951324f284)), closes [#1185](https://github.com/ellite/Wallos/issues/1185)
+* **security:** validate and encode the theme cookies on the registration page ([#1190](https://github.com/ellite/Wallos/issues/1190)) ([768a1ea](https://github.com/ellite/Wallos/commit/768a1ead75bdf6cbaaea992a44ea85ee4d19d72e))
+* sort categories by the order column, not by the string 'order' ([#1198](https://github.com/ellite/Wallos/issues/1198)) ([098d1b0](https://github.com/ellite/Wallos/commit/098d1b0a9d32ab04a623ee51680b856d9f20027d))
+
+## [5.5.1](https://github.com/ellite/Wallos/compare/v5.5.0...v5.5.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **restore:** increase upload max size ([ed7ccaf](https://github.com/ellite/Wallos/commit/ed7ccaf57e692c2201eae6f48e352552ebc50dd1))
+
+## [5.5.0](https://github.com/ellite/Wallos/compare/v5.4.5...v5.5.0) (2026-09-01)
+
+
+### Features
+
+* let admins allow standard users to use the Webhook Allowlist (closes [#1153](https://github.com/ellite/Wallos/issues/1153), closes [#1138](https://github.com/ellite/Wallos/issues/1138)) ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+
+
+### Bug Fixes
+
+* **auth:** actually delete the login token on logout ([#1184](https://github.com/ellite/Wallos/issues/1184)) ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* **auth:** make the TOTP replay guard run ([#1181](https://github.com/ellite/Wallos/issues/1181)) ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* close remaining gaps in login-token revocation from [#1184](https://github.com/ellite/Wallos/issues/1184)'s review ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* OIDC token exchange failing behind CDN/anycast proxies (closes [#1145](https://github.com/ellite/Wallos/issues/1145)) ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* payment method in-use guard misses when 2+ subscriptions share it (closes [#1179](https://github.com/ellite/Wallos/issues/1179)) ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* reflected XSS via unescaped theme cookies in inline scripts ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* reject deleting or disabling an in-use payment method on every path ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+* undefined array key warnings for subscriptions with no seeded stats bucket (closes [#1182](https://github.com/ellite/Wallos/issues/1182)) ([41494ef](https://github.com/ellite/Wallos/commit/41494ef54d2bf6bceabb5444ec644dfdaff948e1))
+
+## [5.4.5](https://github.com/ellite/Wallos/compare/v5.4.4...v5.4.5) (2026-08-23)
+
+
+### Bug Fixes
+
+* scope currency rate updates to the user being refreshed ([#1175](https://github.com/ellite/Wallos/issues/1175)) ([267f057](https://github.com/ellite/Wallos/commit/267f057bec332f29cb19e9478f20f0212baaf65c)), closes [#1150](https://github.com/ellite/Wallos/issues/1150)
+
+## [5.4.4](https://github.com/ellite/Wallos/compare/v5.4.3...v5.4.4) (2026-08-15)
+
+
+### Bug Fixes
+
+* bump version ([#1162](https://github.com/ellite/Wallos/issues/1162)) ([1efd340](https://github.com/ellite/Wallos/commit/1efd340c92ff713e1ec71682065846bd210acb6a))
+
+## [5.4.3](https://github.com/ellite/Wallos/compare/v5.4.2...v5.4.3) (2026-08-15)
+
+
+### Bug Fixes
+
+* **security:** block IPv6 transition addresses in SSRF guard ([44e3b62](https://github.com/ellite/Wallos/commit/44e3b62a2e4ae01fb3f3bf3ec8db35ce5b8783df))
+* **security:** rate limit totp verification ([44e3b62](https://github.com/ellite/Wallos/commit/44e3b62a2e4ae01fb3f3bf3ec8db35ce5b8783df))
+* **security:** stream database backups instead of writing them to the web root ([44e3b62](https://github.com/ellite/Wallos/commit/44e3b62a2e4ae01fb3f3bf3ec8db35ce5b8783df))
+* **security:** unsafe zip extraction during db restore ([44e3b62](https://github.com/ellite/Wallos/commit/44e3b62a2e4ae01fb3f3bf3ec8db35ce5b8783df))
+
+## [5.4.2](https://github.com/ellite/Wallos/compare/v5.4.1...v5.4.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* use themed version of the logo on edit subscription page ([#1133](https://github.com/ellite/Wallos/issues/1133)) ([e913511](https://github.com/ellite/Wallos/commit/e9135115d0e238f78c5561ecb00c9e36acb63dd6))
+
+## [5.4.1](https://github.com/ellite/Wallos/compare/v5.4.0...v5.4.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* bump version ([#1131](https://github.com/ellite/Wallos/issues/1131)) ([18dd08b](https://github.com/ellite/Wallos/commit/18dd08bd80a85b4f21fc30b25f04172af07f2e13))
+
+## [5.4.0](https://github.com/ellite/Wallos/compare/v5.3.0...v5.4.0) (2026-07-18)
+
+
+### Features
+
+* add Arabic localization ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* add manual logo search box and png prioritization ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* add OIDC_REQUIRE_EMAIL_VERIFIED environment variable and SSRF_ALLOWLIST environment variable ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+
+
+### Bug Fixes
+
+* ai recommendations not handling varied provider responses ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* deleting orphaned logos not taking into account themed variants ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* email notification test rejecting non-admin users ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* notification test/send requests hanging on unreachable hosts ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* pin discord notification action to a commit sha ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* progress bar showing 100% when next payment is more than one cycle away ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* service worker caching stale logo search results and broken images as logos ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+* stats page not using themed logo variants ([aff3ed0](https://github.com/ellite/Wallos/commit/aff3ed06b154a6b9bca6d0777f5935b5f9e8dd59))
+
+## [5.3.0](https://github.com/ellite/Wallos/compare/v5.2.0...v5.3.0) (2026-07-18)
+
+
+### Features
+
+* add payment-period budgeting ([4b8fbe5](https://github.com/ellite/Wallos/commit/4b8fbe578c8a27ba668db5feaeb005f5718519f4))
+
+## [5.2.0](https://github.com/ellite/Wallos/compare/v5.1.1...v5.2.0) (2026-07-14)
+
+
+### Features
+
+* add new logo themed versions generation to add subscription api endpoint ([921fcfd](https://github.com/ellite/Wallos/commit/921fcfd1598d5efcaca584f2ad4df652735399f3))
+* better navigation inside logo search ([921fcfd](https://github.com/ellite/Wallos/commit/921fcfd1598d5efcaca584f2ad4df652735399f3))
+* bottom sheet slide up animation ([921fcfd](https://github.com/ellite/Wallos/commit/921fcfd1598d5efcaca584f2ad4df652735399f3))
+* improve menu navigation on grid mode ([921fcfd](https://github.com/ellite/Wallos/commit/921fcfd1598d5efcaca584f2ad4df652735399f3))
+
+
+### Bug Fixes
+
+* syntax error on nl.js translation file ([921fcfd](https://github.com/ellite/Wallos/commit/921fcfd1598d5efcaca584f2ad4df652735399f3))
+
+## [5.1.1](https://github.com/ellite/Wallos/compare/v5.1.0...v5.1.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* bump version ([#1113](https://github.com/ellite/Wallos/issues/1113)) ([d3b72d3](https://github.com/ellite/Wallos/commit/d3b72d33cd111d9aa2fa619be0098f8423f54eeb))
+
+## [5.1.0](https://github.com/ellite/Wallos/compare/v5.0.0...v5.1.0) (2026-07-12)
+
+
+### Features
+
+* create dark and light theme versions of the logos when removing background ([8d22f04](https://github.com/ellite/Wallos/commit/8d22f0435372c8874fcc2f42733230cdb2674167))
+
+
+### Bug Fixes
+
+* ajax calls after session expired ([8d22f04](https://github.com/ellite/Wallos/commit/8d22f0435372c8874fcc2f42733230cdb2674167))
+
+## [5.0.0](https://github.com/ellite/Wallos/compare/v4.9.6...v5.0.0) (2026-07-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* complete ui overhaul ([#1108](https://github.com/ellite/Wallos/issues/1108))
+
+### Features
+
+* Allow setting beginning of week as Sunday in calendar ([#1010](https://github.com/ellite/Wallos/issues/1010)) ([f01685e](https://github.com/ellite/Wallos/commit/f01685e0eb36690e3ecdcf2f029cae29764e3389))
+* complete ui overhaul ([#1108](https://github.com/ellite/Wallos/issues/1108)) ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* dashboard icons image search ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* declarative oidc settings ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* google image search with serpapi ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* grid view for subscriptions ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* more statistics ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* option for the week to start on sunday ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* redesign login / registration pages ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* selfh.st image search ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* subscription details popup ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* translate categories with ai ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* v2.0 api - write endpoints ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+
+
+### Bug Fixes
+
+* calendar occurrences to respect subscription start date ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* escape iCal property values to prevent crlf injection ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* honor configured outbound proxy for logo search without reopening httpoxy SSRF bypass ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* improve background removal feature for logos ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* include todays subscriptions on amount due this month ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* remove hardcode string from the admin page ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* require cron auth guard on storetotalyearlycost.php ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* ssrf via http proxy env var in payments logo search ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+* validate per-user smtp host against ssrf ([11eaf40](https://github.com/ellite/Wallos/commit/11eaf402e841a628c68a805694227ce66c45f6f3))
+
 ## [4.9.6](https://github.com/ellite/Wallos/compare/v4.9.5...v4.9.6) (2026-06-22)
 
 

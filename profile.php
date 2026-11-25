@@ -25,7 +25,7 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         <header>
             <h2><?= translate('user_details', $i18n) ?></h2>
         </header>
-        <form action="endpoints/user/saveuser.php" method="post" id="userForm" enctype="multipart/form-data">
+        <form action="endpoints/user/save_user.php" method="post" id="userForm" enctype="multipart/form-data">
             <div class="user-form">
                 <div class="fields">
                     <div>
@@ -93,6 +93,11 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                             <label for="email"><?= translate('email', $i18n) ?>:</label>
                             <input type="email" id="email" name="email" autocomplete="email"
                                 value="<?= htmlspecialchars($userData['email']) ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="current_password"><?= translate('current_password', $i18n) ?>:</label>
+                            <input type="password" id="current_password" name="current_password" autocomplete="current-password"
+                                <?= $demoMode ? 'disabled title="Not available on Demo Mode"' : '' ?>>
                         </div>
                         <div class="form-group">
                             <label for="password"><?= translate('password', $i18n) ?>:</label>

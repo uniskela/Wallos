@@ -1,28 +1,17 @@
-const deleteSvgContent = `
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48" id="Recycle-Bin-2--Streamline-Plump.svg" height="48" width="48">
-  <g id="recycle-bin-2--remove-delete-empty-bin-trash-garbage">
-    <path id="Union" class="accent-color" d="M43.318 15.934a1.5 1.5 0 0 0 -1.618 -1.591c-3.016 0.246 -8.46 0.52 -17.721 0.52 -9.215 0 -14.65 -0.271 -17.675 -0.516a1.5 1.5 0 0 0 -1.618 1.59c0.888 13.84 1.74 21.07 2.253 24.547 0.332 2.252 1.85 4.217 4.226 4.788 2.445 0.588 6.55 1.227 12.837 1.227 6.286 0 10.392 -0.64 12.837 -1.227 2.375 -0.57 3.894 -2.536 4.226 -4.788 0.513 -3.477 1.365 -10.708 2.253 -24.55Z" stroke-width="1"/>
-    <path id="Union_2" class="main-color" d="M23.37 1a8 8 0 0 0 -7.034 4.188c-3.411 0.072 -6 0.182 -7.814 0.282 -2.312 0.127 -4.692 1.242 -5.7 3.605 -0.244 0.57 -0.475 1.212 -0.663 1.919 -0.68 2.548 1.302 4.622 3.657 4.822 3.057 0.258 8.614 0.548 18.161 0.548 9.549 0 15.106 -0.29 18.162 -0.549 2.374 -0.2 4.291 -2.261 3.751 -4.785a16.68 16.68 0 0 0 -0.294 -1.167c-0.824 -2.831 -3.517 -4.277 -6.188 -4.411a260.66 260.66 0 0 0 -7.744 -0.264A8 8 0 0 0 24.631 1H23.37Z" stroke-width="1"/>
-    <path id="Vector_831_Stroke" class="main-color" fill-rule="evenodd" d="M17.8 23.01a2 2 0 0 1 2.19 1.791l1 10a2 2 0 0 1 -3.98 0.398l-1 -10a2 2 0 0 1 1.79 -2.189Z" clip-rule="evenodd" stroke-width="1"/>
-    <path id="Vector_832_Stroke" class="main-color" fill-rule="evenodd" d="M30.2 23.01a2 2 0 0 0 -2.19 1.791l-1 10a2 2 0 0 0 3.98 0.398l1 -10a2 2 0 0 0 -1.79 -2.189Z" clip-rule="evenodd" stroke-width="1"/>
-  </g>
-</svg>
-`;
+const saveIconContent = '<i class="fa-solid fa-check"></i>';
+const deleteIconContent = '<i class="fa-solid fa-trash-can"></i>';
 
-const editSvgContent = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48" id="File-Check-Alternate--Streamline-Plump.svg" height="48" width="48">
-  <g id="file-check-alternate--file-common-check">
-    <path id="Subtract" class="accent-color" d="M13.582 2.137C16.326 1.823 20.685 1.5 27 1.5a165 165 0 0 1 5.13 0.077 1.5 1.5 0 0 1 0.4 0.068c1.098 0.343 4.029 1.564 8.123 5.578 3.862 3.787 5.195 6.563 5.63 7.781a1.5 1.5 0 0 1 0.087 0.45c0.08 2.153 0.13 4.655 0.13 7.546 0 7.57 -0.343 12.478 -0.669 15.432 -0.32 2.9 -2.518 5.1 -5.413 5.431 -2.744 0.314 -7.103 0.637 -13.418 0.637 -1.044 0 -2.035 -0.009 -2.974 -0.025A14.458 14.458 0 0 0 28.5 34c0 -8.008 -6.492 -14.5 -14.5 -14.5a14.44 14.44 0 0 0 -6.492 1.531c0.053 -6.464 0.364 -10.773 0.66 -13.463 0.32 -2.9 2.519 -5.1 5.414 -5.431Z" stroke-width="1"></path>
-    <path id="Intersect" class="main-color" d="M46.348 15.25c-2.42 -0.001 -6.57 -0.04 -8.948 -0.268 -2.598 -0.249 -4.641 -2.321 -4.896 -4.975 -0.214 -2.233 -0.253 -5.99 -0.254 -8.421 0.095 0.01 0.188 0.03 0.28 0.059 1.098 0.343 4.029 1.564 8.123 5.578 3.862 3.787 5.195 6.563 5.63 7.781 0.029 0.08 0.05 0.163 0.065 0.246Z" stroke-width="1"></path>
-    <path id="Subtract_2" class="main-color" fill-rule="evenodd" d="M14 46c6.627 0 12 -5.373 12 -12s-5.373 -12 -12 -12S2 27.373 2 34s5.373 12 12 12Z" clip-rule="evenodd" stroke-width="1"></path>
-    <path id="Subtract_3" class="accent-color" fill-rule="evenodd" d="M20.611 31.185a2 2 0 1 0 -3.222 -2.37l-4.413 6.002L10.5 32.01a2 2 0 0 0 -3 2.647l4.118 4.666a2 2 0 0 0 3.111 -0.138l5.882 -8Z" clip-rule="evenodd" stroke-width="1"></path>
-  </g>
-</svg>`;
-
-function saveBudget() {
-  const button = document.getElementById("saveBudget");
+function saveMonthlyBudget() {
+  const button = document.getElementById("saveMonthlyBudget");
   button.disabled = true;
 
-  const budget = document.getElementById("budget").value;
+  const budget = Number(document.getElementById("monthly_budget").value || 0);
+
+  if (Number.isNaN(budget) || budget < 0) {
+    showErrorMessage(translate("invalid_budget"));
+    button.disabled = false;
+    return;
+  }
 
   fetch('endpoints/user/budget.php', {
     method: 'POST',
@@ -30,14 +19,137 @@ function saveBudget() {
       'Content-Type': 'application/json',
       'X-CSRF-Token': window.csrfToken,
     },
-    body: JSON.stringify({budget: budget}),
+    body: JSON.stringify({ monthly_budget: budget }),
   })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
         showSuccessMessage(data.message);
       } else {
-        showErrorMessage(data.message);
+        showErrorMessage(data.message || translate('unknown_error'));
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate('unknown_error'));
+    })
+    .finally(() => {
+      button.disabled = false;
+    });
+}
+
+// A monthly period anchored on the 1st runs from the 1st to the end of the
+// month, which is the calendar month the statistics already use, so turning it
+// on would change nothing. A semi-monthly period does the same when both
+// paydays are the 1st, because the two collapse to a single start per month.
+// Weekly and fortnightly periods never line up with a month.
+//
+// settings.php decides the same thing on load by asking getActiveBudgetPeriod();
+// this keeps the note honest while the controls are being changed, before
+// anything has been saved.
+function updateSecondPaydayField() {
+  const field = document.getElementById("secondPaydayField");
+  if (!field) {
+    return;
+  }
+
+  field.hidden = document.getElementById("budget_period_type").value !== "semimonthly";
+}
+
+function updateCustomPeriodWarning() {
+  const warning = document.getElementById("customPeriodWarning");
+  if (!warning) {
+    return;
+  }
+
+  const enabled = document.getElementById("use_custom_period").checked;
+  const periodType = document.getElementById("budget_period_type").value;
+  const anchorDate = document.getElementById("budget_period_anchor_date").value;
+  const anchorDay = Number(anchorDate.split("-")[2]);
+  const secondDay = Number(document.getElementById("budget_period_second_day").value);
+
+  const isCalendarMonth = (periodType === "monthly" && anchorDay === 1)
+    || (periodType === "semimonthly" && anchorDay === 1 && secondDay === 1);
+
+  // The two notes contradict each other, so only one is ever shown: saying the
+  // period now drives everything is wrong when the period is a calendar month.
+  warning.hidden = !(enabled && isCalendarMonth);
+
+  const activeNote = document.getElementById("customPeriodActiveWarning");
+  if (activeNote) {
+    activeNote.hidden = !(enabled && !isCalendarMonth);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  ["use_custom_period", "budget_period_type", "budget_period_anchor_date", "budget_period_second_day"].forEach((id) => {
+    const control = document.getElementById(id);
+    if (control) {
+      control.addEventListener("change", updateCustomPeriodWarning);
+      control.addEventListener("change", updateSecondPaydayField);
+    }
+  });
+});
+
+function savePeriodBudget() {
+  const button = document.getElementById("savePeriodBudget");
+  button.disabled = true;
+
+  const budget = Number(document.getElementById("period_budget").value || 0);
+  const useCustomPeriod = document.getElementById("use_custom_period").checked;
+  const budgetPeriodType = document.getElementById("budget_period_type").value;
+  const budgetPeriodAnchorDateInput = document.getElementById("budget_period_anchor_date");
+  let budgetPeriodAnchorDate = budgetPeriodAnchorDateInput.value;
+  const secondDay = Number(document.getElementById("budget_period_second_day").value);
+  const validPeriodTypes = ["weekly", "fortnightly", "semimonthly", "monthly"];
+
+  if (!budgetPeriodAnchorDate || budgetPeriodAnchorDate === "1970-01-01") {
+    const today = new Date();
+    const month = `${today.getMonth() + 1}`.padStart(2, "0");
+    const day = `${today.getDate()}`.padStart(2, "0");
+    budgetPeriodAnchorDate = `${today.getFullYear()}-${month}-${day}`;
+    budgetPeriodAnchorDateInput.value = budgetPeriodAnchorDate;
+  }
+
+  if (Number.isNaN(budget) || budget < 0) {
+    showErrorMessage(translate("invalid_budget"));
+    button.disabled = false;
+    return;
+  }
+
+  if (!validPeriodTypes.includes(budgetPeriodType)) {
+    showErrorMessage(translate("invalid_budget_period"));
+    button.disabled = false;
+    return;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(budgetPeriodAnchorDate)) {
+    showErrorMessage(translate("invalid_budget_anchor_date"));
+    button.disabled = false;
+    return;
+  }
+
+  fetch('endpoints/user/budget.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify({
+      period_budget: budget,
+      use_custom_period: useCustomPeriod,
+      budget_period_type: budgetPeriodType,
+      budget_period_anchor_date: budgetPeriodAnchorDate,
+      budget_period_second_day: secondDay,
+    }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+        updateCustomPeriodWarning();
+      } else {
+        showErrorMessage(data.message || translate('unknown_error'));
       }
     })
     .catch(error => {
@@ -94,14 +206,14 @@ function addMemberButton(memberId) {
         editLink.className = "image-button medium";
         editLink.name = "save";
         editLink.onclick = () => editMember(newMemberId);
-        editLink.innerHTML = editSvgContent;
+        editLink.innerHTML = saveIconContent;
         editLink.title = translate("save_member");
 
         const deleteLink = document.createElement("button");
         deleteLink.className = "image-button medium";
         deleteLink.name = "delete";
         deleteLink.onclick = () => removeMember(newMemberId);
-        deleteLink.innerHTML = deleteSvgContent;
+        deleteLink.innerHTML = deleteIconContent;
         deleteLink.title = translate("delete_member");
 
         div.appendChild(input);
@@ -238,6 +350,7 @@ function addCategoryButton(categoryId) {
 
         const dragIcon = document.createElement("div");
         dragIcon.className = "drag-icon";
+        dragIcon.innerHTML = '<i class="fa-solid fa-grip-vertical"></i>';
 
         const input = document.createElement("input");
         input.type = "text";
@@ -251,7 +364,7 @@ function addCategoryButton(categoryId) {
         editLink.onclick = function () {
           editCategory(newCategoryId);
         };
-        editLink.innerHTML = editSvgContent;
+        editLink.innerHTML = saveIconContent;
         editLink.title = translate('save_member');
 
         const deleteLink = document.createElement("button");
@@ -260,7 +373,7 @@ function addCategoryButton(categoryId) {
         deleteLink.onclick = function () {
           removeCategory(newCategoryId);
         };
-        deleteLink.innerHTML = deleteSvgContent;
+        deleteLink.innerHTML = deleteIconContent;
         deleteLink.title = translate('delete_member');
 
         row.appendChild(dragIcon);
@@ -365,6 +478,175 @@ function editCategory(categoryId) {
 }
 
 
+function addFolderButton() {
+  const addButton = document.getElementById("addFolder");
+  addButton.disabled = true;
+
+  fetch('endpoints/folders/folder.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: new URLSearchParams({action: 'add'}),
+  })
+    .then(response => {
+      if (!response.ok) {
+        showErrorMessage(translate('failed_add_folder'));
+        throw new Error(translate('network_response_error'));
+      }
+      return response.json();
+    })
+    .then(responseData => {
+      if (responseData.success) {
+        const newFolderId = responseData.folderId;
+        const container = document.getElementById("folders");
+
+        const row = document.createElement("div");
+        row.className = "form-group-inline";
+        row.dataset.folderid = newFolderId;
+
+        const dragIcon = document.createElement("div");
+        dragIcon.className = "drag-icon";
+        dragIcon.innerHTML = '<i class="fa-solid fa-grip-vertical"></i>';
+
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.name = "folder-color";
+        colorInput.className = "folder-color-picker";
+        colorInput.value = responseData.color;
+        colorInput.title = translate('folder_color');
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = translate('folder');
+        input.name = "folder";
+        input.value = translate('folder');
+
+        const editLink = document.createElement("button");
+        editLink.className = "image-button medium";
+        editLink.name = "save";
+        editLink.onclick = function () {
+          editFolder(newFolderId);
+        };
+        editLink.innerHTML = saveIconContent;
+        editLink.title = translate('save_folder');
+
+        const deleteLink = document.createElement("button");
+        deleteLink.className = "image-button medium";
+        deleteLink.name = "delete";
+        deleteLink.onclick = function () {
+          removeFolder(newFolderId);
+        };
+        deleteLink.innerHTML = deleteIconContent;
+        deleteLink.title = translate('delete_folder');
+
+        row.appendChild(dragIcon);
+        row.appendChild(colorInput);
+        row.appendChild(input);
+        row.appendChild(editLink);
+        row.appendChild(deleteLink);
+        container.appendChild(row);
+      } else {
+        showErrorMessage(responseData.message);
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate('failed_add_folder'));
+    })
+    .finally(() => {
+      addButton.disabled = false;
+    });
+}
+
+
+function removeFolder(folderId) {
+  fetch('endpoints/folders/folder.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: new URLSearchParams({
+      action: 'delete',
+      folderId: folderId,
+    }),
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(translate('network_response_error'));
+      }
+      return response.json();
+    })
+    .then(responseData => {
+      if (responseData.success) {
+        const divToRemove = document.querySelector(`[data-folderid="${folderId}"]`);
+        if (divToRemove) divToRemove.remove();
+        showSuccessMessage(responseData.message);
+      } else {
+        showErrorMessage(responseData.message || translate('failed_remove_folder'));
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate('failed_remove_folder'));
+    });
+}
+
+
+function editFolder(folderId) {
+  const saveButton = document.querySelector(`div[data-folderid="${folderId}"] button[name="save"]`);
+  const inputElement = document.querySelector(`div[data-folderid="${folderId}"] input[name="folder"]`);
+  const colorElement = document.querySelector(`div[data-folderid="${folderId}"] input[name="folder-color"]`);
+
+  if (!inputElement) return;
+
+  saveButton.classList.add("disabled");
+  saveButton.disabled = true;
+
+  const folderName = inputElement.value;
+  const folderColor = colorElement ? colorElement.value : "";
+
+  fetch('endpoints/folders/folder.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: new URLSearchParams({
+      action: 'edit',
+      folderId: folderId,
+      name: folderName,
+      color: folderColor,
+    }),
+  })
+    .then(response => {
+      saveButton.classList.remove("disabled");
+      saveButton.disabled = false;
+
+      if (!response.ok) {
+        showErrorMessage(translate('failed_save_folder'));
+        throw new Error(translate('network_response_error'));
+      }
+      return response.json();
+    })
+    .then(responseData => {
+      if (responseData.success) {
+        showSuccessMessage(responseData.message);
+      } else {
+        showErrorMessage(responseData.message || translate('failed_save_folder'));
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate('failed_save_folder'));
+      saveButton.classList.remove("disabled");
+      saveButton.disabled = false;
+    });
+}
+
+
 function addCurrencyButton(currencyId) {
   const addButton = document.getElementById("addCurrency");
   addButton.disabled = true;
@@ -417,7 +699,7 @@ function addCurrencyButton(currencyId) {
         editLink.onclick = function () {
           editCurrency(newCurrencyId);
         };
-        editLink.innerHTML = editSvgContent;
+        editLink.innerHTML = saveIconContent;
         editLink.title = translate('save_member');
 
         const deleteLink = document.createElement("button");
@@ -426,7 +708,7 @@ function addCurrencyButton(currencyId) {
         deleteLink.onclick = function () {
           removeCurrency(newCurrencyId);
         };
-        deleteLink.innerHTML = deleteSvgContent;
+        deleteLink.innerHTML = deleteIconContent;
         deleteLink.title = translate('delete_member');
 
         div.appendChild(inputSymbol);
@@ -685,25 +967,42 @@ function setSearchButtonStatus() {
 function searchPaymentIcon() {
   const nameInput = document.querySelector("#paymentname");
   const searchTerm = nameInput.value.trim();
-  if (searchTerm !== "") {
-    const iconSearchPopup = document.querySelector("#icon-search-results");
-    iconSearchPopup.classList.add("is-open");
-    const imageSearchUrl = `endpoints/payments/search.php?search=${searchTerm}`;
-    fetch(imageSearchUrl)
-      .then(response => response.json())
-      .then(data => {
-        if (data.imageUrls) {
-          displayImageResults(data.imageUrls);
-        } else if (data.error) {
-          console.error(data.error);
-        }
-      })
-      .catch(error => {
-        console.error(translate('error_fetching_image_results'), error);
-      });
-  } else {
+  if (searchTerm === "") {
     nameInput.focus();
+    return;
   }
+
+  const iconSearchPopup = document.querySelector("#icon-search-results");
+  const iconResults = document.querySelector("#icon-search-images");
+  const iconSearchBackdrop = document.querySelector("#icon-search-backdrop");
+  iconSearchPopup.classList.add("is-open");
+  if (iconSearchBackdrop) {
+    iconSearchBackdrop.classList.add("is-open");
+  }
+  const iconSearchTitle = document.querySelector("#icon-search-title");
+  if (iconSearchTitle) {
+    const baseTitle = iconSearchTitle.dataset.title;
+    iconSearchTitle.textContent = `${baseTitle}: ${searchTerm}`;
+  }
+  showSearchState(iconResults, 'loading');
+
+  const imageSearchUrl = `endpoints/payments/search.php?search=${searchTerm}`;
+  fetch(imageSearchUrl)
+    .then(response => response.json())
+    .then(data => {
+      if (data.imageUrls && data.imageUrls.length > 0) {
+        displayImageResults(data.imageUrls);
+      } else if (data.error) {
+        console.error(data.error);
+        showSearchState(iconResults, 'error');
+      } else {
+        showSearchState(iconResults, 'empty');
+      }
+    })
+    .catch(error => {
+      console.error(translate('error_fetching_image_results'), error);
+      showSearchState(iconResults, 'error');
+    });
 }
 
 function displayImageResults(imageSources) {
@@ -735,6 +1034,14 @@ function selectWebIcon(url) {
 function closeIconSearch() {
   const iconSearchPopup = document.querySelector("#icon-search-results");
   iconSearchPopup.classList.remove("is-open");
+  const iconSearchBackdrop = document.querySelector("#icon-search-backdrop");
+  if (iconSearchBackdrop) {
+    iconSearchBackdrop.classList.remove("is-open");
+  }
+  const iconSearchTitle = document.querySelector("#icon-search-title");
+  if (iconSearchTitle) {
+    iconSearchTitle.textContent = iconSearchTitle.dataset.title;
+  }
   const iconResults = document.querySelector("#icon-search-images");
   iconResults.innerHTML = "";
 }
@@ -745,14 +1052,42 @@ function resetFormIcon() {
   iconPreview.style.display = 'none';
 }
 
+// Same markup settings.php prints on first load; click, rename and drag are
+// handled by the delegated listeners and by Sortable on #payments-list.
+function renderPaymentMethods(data) {
+  return data.payments.map(payment => `
+    <div class="payments-payment" data-enabled="${Number(payment.enabled)}" data-in-use="${payment.in_use ? "yes" : "no"}" data-paymentid="${Number(payment.id)}" title="${escapeHtml(payment.title)}">
+      <div class="drag-icon" title="">
+        <i class="fa-solid fa-grip-vertical"></i>
+      </div>
+      <img src="${escapeHtml(payment.icon)}" alt="Logo" />
+      <span class="payment-name" contenteditable="true" title="${escapeHtml(data.labels.rename_payment_method)}">${escapeHtml(payment.name)}</span>
+      ${payment.in_use ? "" : `<div class="delete-payment-method" title="${escapeHtml(data.labels.delete)}" data-paymentid="${Number(payment.id)}">x</div>`}
+    </div>`).join("");
+}
+
 function reloadPaymentMethods() {
   const paymentsContainer = document.querySelector("#payments-list");
   const paymentMethodsEndpoint = "endpoints/payments/get.php";
 
   fetch(paymentMethodsEndpoint)
-    .then(response => response.text())
+    .then(response => response.json())
     .then(data => {
-      paymentsContainer.innerHTML = data;
+      if (!data.payments) {
+        throw new Error(data.message || translate("unknown_error"));
+      }
+      paymentsContainer.innerHTML = renderPaymentMethods(data);
+      paymentsContainer.querySelectorAll(".delete-payment-method").forEach(button => {
+        button.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          deletePaymentMethod(button.dataset.paymentid);
+        });
+      });
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate("unknown_error"));
     });
 }
 
@@ -877,6 +1212,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  loadGoogleSearchUsage();
+  loadFixerUsage();
+
   if (document.getElementById("ai_type")) {
     toggleAiInputs();
   }
@@ -917,7 +1255,7 @@ function addFixerKeyButton() {
             'X-CSRF-Token': window.csrfToken,
           },
           body: new URLSearchParams({force: "true"}),
-        }).catch(console.error);
+        }).catch(console.error).finally(() => loadFixerUsage());
       } else {
         showErrorMessage(data.message);
         addButton.disabled = false;
@@ -992,6 +1330,13 @@ function setShowOriginalPrice() {
   storeSettingsOnDB('show_original_price', value);
 }
 
+function setUpcomingPaymentsLimit() {
+  const upcomingPaymentsLimit = document.querySelector("#upcomingpaymentslimit");
+  const value = Number(upcomingPaymentsLimit.value);
+
+  storeSettingsOnDB('upcoming_payments_limit', value);
+}
+
 function setMobileNavigation() {
   const mobileNavigationCheckbox = document.querySelector("#mobilenavigation");
   const value = mobileNavigationCheckbox.checked;
@@ -1004,6 +1349,132 @@ function setShowSubscriptionProgress() {
   const value = showSubscriptionProgressCheckbox.checked;
 
   storeSettingsOnDB('subscription_progress', value);
+}
+
+function savePaymentMethodBudgets() {
+  const inputs = document.querySelectorAll('.payment-method-budget-row input[type="number"]');
+  const budgets = {};
+  for (const input of inputs) {
+    const budget = Number(input.value || 0);
+    if (Number.isNaN(budget) || budget < 0) {
+      showErrorMessage(translate('invalid_budget'));
+      input.focus();
+      return;
+    }
+    budgets[input.dataset.paymentMethodId] = budget;
+  }
+
+  const button = document.getElementById('savePaymentMethodBudgets');
+  if (button) {
+    button.disabled = true;
+  }
+
+  fetch('endpoints/payments/budget.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify({ budgets: budgets })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message || translate('unknown_error'));
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate('unknown_error'));
+    })
+    .finally(() => {
+      if (button) {
+        button.disabled = false;
+      }
+    });
+}
+
+function loadApiUsage(endpoint, containerId, countId, fillId) {
+  const usageContainer = document.getElementById(containerId);
+  if (!usageContainer) {
+    return;
+  }
+
+  fetch(endpoint, {
+    headers: {
+      'X-CSRF-Token': window.csrfToken,
+    }
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success || !data.total) {
+        usageContainer.style.display = "none";
+        return;
+      }
+
+      const percent = Math.min(100, Math.round((data.used / data.total) * 100));
+      document.getElementById(countId).textContent = `${data.used} / ${data.total}`;
+
+      const fill = document.getElementById(fillId);
+      fill.style.width = percent + "%";
+      fill.classList.toggle("warn", percent >= 80 && percent < 95);
+      fill.classList.toggle("danger", percent >= 95);
+
+      usageContainer.style.display = "";
+    })
+    .catch(() => {
+      usageContainer.style.display = "none";
+    });
+}
+
+function loadFixerUsage() {
+  loadApiUsage("endpoints/settings/fixer_usage.php", "fixerUsage", "fixerUsageCount", "fixerUsageFill");
+}
+
+function loadGoogleSearchUsage() {
+  loadApiUsage("endpoints/settings/google_search_usage.php", "googleSearchUsage", "googleSearchUsageCount", "googleSearchUsageFill");
+}
+
+function saveGoogleSearchButton() {
+  const saveButton = document.getElementById("saveGoogleSearch");
+  saveButton.disabled = true;
+
+  const apiKey = document.querySelector("#googleSearchKey").value.trim();
+
+  fetch("endpoints/settings/google_search.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: new URLSearchParams({
+      api_key: apiKey,
+    }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+        loadGoogleSearchUsage();
+      } else {
+        showErrorMessage(data.message);
+      }
+    })
+    .catch(() => {
+      showErrorMessage(translate('unknown_error'));
+    })
+    .finally(() => {
+      saveButton.disabled = false;
+    });
+}
+
+function setWeekStartsSunday() {
+  const weekStartsSundayCheckbox = document.querySelector("#weekstartssunday");
+  const value = weekStartsSundayCheckbox.checked;
+
+  storeSettingsOnDB('week_starts_sunday', value);
 }
 
 function saveCategorySorting() {
@@ -1046,6 +1517,47 @@ var sortable = Sortable.create(el, {
   },
 });
 
+function saveFolderSorting() {
+  const folders = document.getElementById("folders");
+  const folderIds = Array.from(folders.children).map(f => f.dataset.folderid);
+
+  const formData = new FormData();
+  folderIds.forEach(folderId => formData.append("folderIds[]", folderId));
+  formData.append("action", "sort");
+
+  fetch("endpoints/folders/folder.php", {
+    method: "POST",
+    headers: {"X-CSRF-Token": window.csrfToken},
+    body: formData,
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      showErrorMessage(translate("unknown_error"));
+    });
+}
+
+var foldersEl = document.getElementById('folders');
+if (foldersEl) {
+  Sortable.create(foldersEl, {
+    handle: '.drag-icon',
+    ghostClass: 'sortable-ghost',
+    delay: 500,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 5,
+    onEnd: function (evt) {
+      saveFolderSorting();
+    },
+  });
+}
+
 function fetch_ai_models() {
   const endpoint = 'endpoints/ai/fetch_models.php';
   const type = document.querySelector("#ai_type").value;
@@ -1083,8 +1595,7 @@ function fetch_ai_models() {
 function toggleAiInputs() {
   const type = document.getElementById("ai_type").value;
   const apiKeyInput = document.getElementById("ai_api_key");
-  const apiKeyToggleButton = document.getElementById("toggleAiApiKey");
-  const apiKeyToggleIcon = apiKeyToggleButton?.querySelector("i");
+  const apiKeyToggleIcon = apiKeyInput.closest(".password-field")?.querySelector(".password-toggle i");
   const urlGroup = document.getElementById("ai_url_group");
   const urlInput = document.getElementById("ai_ollama_host");
   const testButtonUrl = document.getElementById("fetchModelsButton2");
@@ -1096,41 +1607,21 @@ function toggleAiInputs() {
 
   if (type === "ollama") {
     apiKeyInput.classList.add("hidden");
-    apiKeyToggleButton?.classList.add("hidden");
     testButtonKey.classList.add("hidden");      // hide key-row Test
     urlGroup.style.display = "";
     urlInput.placeholder = "http://localhost:11434";
     testButtonUrl.classList.remove("hidden");   // show url-row Test
   } else if (type === "openai-compatible") {
     apiKeyInput.classList.remove("hidden");
-    apiKeyToggleButton?.classList.remove("hidden");
     testButtonKey.classList.remove("hidden");   // show key-row Test
     urlGroup.style.display = "";
     urlInput.placeholder = "http://localhost:11434/v1";
     testButtonUrl.classList.add("hidden");      // hide url-row Test
   } else {
     apiKeyInput.classList.remove("hidden");
-    apiKeyToggleButton?.classList.remove("hidden");
     testButtonKey.classList.remove("hidden");   // show key-row Test
     urlGroup.style.display = "none";
     testButtonUrl.classList.add("hidden");      // hidden anyway (group hidden)
-  }
-}
-
-function toggleAiApiKeyVisibility() {
-  const apiKeyInput = document.getElementById("ai_api_key");
-  const apiKeyToggleButton = document.getElementById("toggleAiApiKey");
-  if (!apiKeyInput || !apiKeyToggleButton) {
-    return;
-  }
-
-  const icon = apiKeyToggleButton.querySelector("i");
-  const isPassword = apiKeyInput.type === "password";
-  apiKeyInput.type = isPassword ? "text" : "password";
-
-  if (icon) {
-    icon.classList.toggle("fa-eye", !isPassword);
-    icon.classList.toggle("fa-eye-slash", isPassword);
   }
 }
 
@@ -1169,6 +1660,43 @@ function saveAiSettingsButton() {
     });
 }
 
+function translateCategories() {
+  const button = document.getElementById("translateCategories");
+  const originalContent = button.innerHTML;
+
+  button.disabled = true;
+  button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+  fetch('endpoints/ai/translate_categories.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    }
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        Object.entries(data.translations).forEach(([categoryId, categoryName]) => {
+          const input = document.querySelector(`#categories div[data-categoryid="${categoryId}"] input[name="category"]`);
+          if (input) {
+            input.value = categoryName;
+          }
+        });
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+    })
+    .catch(error => {
+      showErrorMessage(translate('unknown_error'));
+    })
+    .finally(() => {
+      button.disabled = false;
+      button.innerHTML = originalContent;
+    });
+}
+
 function runAiRecommendations() {
   const endpoint = 'endpoints/ai/generate_recommendations.php';
   const button = document.querySelector("#runAiRecommendations");
@@ -1184,7 +1712,22 @@ function runAiRecommendations() {
       'X-CSRF-Token': window.csrfToken,
     }
   })
-    .then(response => response.json())
+    .then(async response => {
+      const responseText = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch (error) {
+        throw new Error(`${translate('network_response_error')} (HTTP ${response.status})`);
+      }
+
+      if (!response.ok && !data.message) {
+        throw new Error(`${translate('network_response_error')} (HTTP ${response.status})`);
+      }
+
+      return data;
+    })
     .then(data => {
       if (data.success) {
         showSuccessMessage(data.message);
@@ -1193,7 +1736,7 @@ function runAiRecommendations() {
       }
     })
     .catch(error => {
-      showErrorMessage(translate('unknown_error'));
+      showErrorMessage(error.message || translate('unknown_error'));
     })
     .finally(() => {
       button.classList.remove("hidden");

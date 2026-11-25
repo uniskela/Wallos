@@ -6,20 +6,52 @@ use PHPMailer\PHPMailer\Exception;
 require_once 'validate.php';
 require_once __DIR__ . '/../../includes/connect_endpoint_crontabs.php';
 require_once __DIR__ . '/../../includes/ssrf_helper.php';
+require_once __DIR__ . '/../../includes/webhook_helper.php';
 
 require __DIR__ . '/../../libs/PHPMailer/PHPMailer.php';
 require __DIR__ . '/../../libs/PHPMailer/SMTP.php';
 require __DIR__ . '/../../libs/PHPMailer/Exception.php';
 
 require 'settimezone.php';
+require_once __DIR__ . '/../../includes/webhook_headers.php';
+require_once __DIR__ . '/../../includes/subscription_payers.php';
+require_once __DIR__ . '/../../includes/subscription_categories.php';
+require_once __DIR__ . '/../../includes/instance_config.php';
 
 // Get all user ids
-$query = "SELECT id, username FROM user";
+$query = "SELECT id, username, language FROM user";
 $stmt = $db->prepare($query);
 $usersToNotify = $stmt->execute();
 
+function buildCancellationMessage($name, $perUser)
+{
+    global $i18n;
+
+    if ($name) {
+        $message = sprintf(translate('notification_cancellation_intro_named', $i18n), $name) . "\n";
+    } else {
+        $message = translate('notification_cancellation_intro', $i18n) . "\n";
+    }
+
+    foreach ($perUser as $subscription) {
+        $message .= sprintf(
+            translate('notification_cancellation_line', $i18n),
+            $subscription['name'],
+            $subscription['price']
+        ) . "\n";
+    }
+
+    return $message;
+}
+
 while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
     $userId = $userToNotify['id'];
+
+    // Load the recipient's own language so the notification is translated per
+    // user. The cron context has no session, so $i18n would otherwise stay
+    // English for everyone.
+    $userLanguage = resolve_language($userToNotify['language'] ?? 'en');
+    require __DIR__ . '/../../includes/i18n/' . $userLanguage . '.php';
     if (php_sapi_name() !== 'cli') {
         echo "For user: " . $userToNotify['username'] . "<br />";
     }
@@ -72,7 +104,10 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
 
     if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         $gotifyNotificationsEnabled = $row['enabled'];
-        $gotify['serverUrl'] = $row["url"];
+        // The instance server when this account has none of its own. Resolved
+        // here, before the SSRF check below reads the address. The token stays
+        // the account's own.
+        $gotify['serverUrl'] = wallos_gotify_server($db, $row["url"]);
         $gotify['appToken'] = $row["token"];
         $gotify['ignore_ssl'] = $row["ignore_ssl"];
     }
@@ -85,7 +120,8 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
 
     if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         $telegramNotificationsEnabled = $row['enabled'];
-        $telegram['botToken'] = $row["bot_token"];
+        // The instance bot when this account has no token of its own.
+        $telegram['botToken'] = wallos_telegram_bot_token($db, $row["bot_token"]);
         $telegram['chatId'] = $row["chat_id"];
     }
 
@@ -98,7 +134,9 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
     if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         $pushoverNotificationsEnabled = $row['enabled'];
         $pushover['user_key'] = $row["user_key"];
-        $pushover['token'] = $row["token"];
+        // The instance application when this account has no token of its own.
+        // The user key stays the account's own.
+        $pushover['token'] = wallos_pushover_token($db, $row["token"]);
     }
 
     // Check if Ntfy notifications are enabled and get the settings
@@ -109,9 +147,12 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
 
     if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         $ntfyNotificationsEnabled = $row['enabled'];
-        $ntfy['host'] = $row["host"];
+        // The instance server when this account has none of its own. Resolved
+        // here, before the SSRF check below reads the host.
+        $ntfySettings = wallos_ntfy_settings($db, $row["host"], $row["headers"]);
+        $ntfy['host'] = $ntfySettings['host'];
         $ntfy['topic'] = $row["topic"];
-        $ntfy['headers'] = $row["headers"];
+        $ntfy['headers'] = $ntfySettings['headers'];
         $ntfy['ignore_ssl'] = $row["ignore_ssl"];
     }
 
@@ -178,96 +219,129 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
         $currentDate = new DateTime('now');
         $currentDate = $currentDate->format('Y-m-d');
 
-        $query = "SELECT * FROM subscriptions WHERE user_id = :user_id AND inactive = :inactive AND cancellation_date = :cancellationDate ORDER BY payer_user_id ASC";
+        // One-time purchases have no recurring commitment to cancel, and the
+        // subscription form clears their cancellation date, so never notify for them.
+        $query = "SELECT * FROM subscriptions WHERE user_id = :user_id AND inactive = :inactive AND cancellation_date = :cancellationDate AND cycle != :oneTimeCycle ORDER BY payer_user_id ASC";
         $stmt = $db->prepare($query);
         $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
         $stmt->bindValue(':inactive', 0, SQLITE3_INTEGER);
         $stmt->bindValue(':cancellationDate', $currentDate, SQLITE3_TEXT);
+        $stmt->bindValue(':oneTimeCycle', 5, SQLITE3_INTEGER);
         $resultSubscriptions = $stmt->execute();
 
         $notify = [];
+        $notifyOtherPayers = [];
         $i = 0;
         $currentDate = new DateTime('now');
         while ($rowSubscription = $resultSubscriptions->fetchArray(SQLITE3_ASSOC)) {
-            $notify[$rowSubscription['payer_user_id']][$i]['name'] = $rowSubscription['name'];
-            $notify[$rowSubscription['payer_user_id']][$i]['price'] = $rowSubscription['price'] . $currencies[$rowSubscription['currency_id']]['symbol'];
-            $notify[$rowSubscription['payer_user_id']][$i]['currency'] = $currencies[$rowSubscription['currency_id']]['name'];
-            $notify[$rowSubscription['payer_user_id']][$i]['category'] = $categories[$rowSubscription['category_id']]['name'];
-            $notify[$rowSubscription['payer_user_id']][$i]['payer'] = $household[$rowSubscription['payer_user_id']]['name'];
-            $notify[$rowSubscription['payer_user_id']][$i]['date'] = $rowSubscription['next_payment'];
-            $notify[$rowSubscription['payer_user_id']][$i]['url'] = $rowSubscription['url'];
-            $notify[$rowSubscription['payer_user_id']][$i]['notes'] = $rowSubscription['notes'];
+            $allPayerIds = getPayersBySubscription($db, [$rowSubscription])[$rowSubscription['id']] ?? [];
+            $entry = [
+                'name' => $rowSubscription['name'],
+                'price' => $rowSubscription['price'] . $currencies[$rowSubscription['currency_id']]['symbol'],
+                'currency' => $currencies[$rowSubscription['currency_id']]['name'],
+                'category' => payerNamesLabel(getCategoriesBySubscription($db, [$rowSubscription])[$rowSubscription['id']] ?? [], array_map(fn($category) => $category['name'], $categories)) ?: $categories[$rowSubscription['category_id']]['name'],
+                'payer' => payerNamesLabel($allPayerIds, array_map(fn($member) => $member['name'], $household)) ?: $household[$rowSubscription['payer_user_id']]['name'],
+                'date' => $rowSubscription['next_payment'],
+                'url' => $rowSubscription['url'],
+                'notes' => $rowSubscription['notes'],
+            ];
+            // Every channel hears about it once, under the primary payer.
+            // Email goes to each payer on their own address, see $notifyEmail.
+            $notify[$rowSubscription['payer_user_id']][$i] = $entry;
+            foreach ($allPayerIds as $extraPayerId) {
+                if ($extraPayerId != $rowSubscription['payer_user_id']) {
+                    $notifyOtherPayers[$extraPayerId][$i] = $entry;
+                }
+            }
             $i++;
+        }
+
+        // Email reaches every payer, the other channels the primary one only
+        $notifyEmail = $notify;
+        foreach ($notifyOtherPayers as $payerId => $entries) {
+            foreach ($entries as $index => $entry) {
+                $notifyEmail[$payerId][$index] = $entry;
+            }
         }
 
         if (!empty($notify)) {
 
             // Email notifications if enabled
             if ($emailNotificationsEnabled) {
-
-                $stmt = $db->prepare('SELECT * FROM user WHERE id = :user_id');
-                $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
-                $result = $stmt->execute();
-                $defaultUser = $result->fetchArray(SQLITE3_ASSOC);
-                $defaultEmail = $defaultUser['email'];
-                $defaultName = $defaultUser['username'];
-
-                foreach ($notify as $userId => $perUser) {
-                    $message = "The following subscriptions are up for cancellation:\n";
-
-                    foreach ($perUser as $subscription) {
-                        $message .= $subscription['name'] . " for " . $subscription['price'] ."\n";
-                    }
-
-                    $smtpAuth = (isset($email["smtpUsername"]) && $email["smtpUsername"] != "") || (isset($email["smtpPassword"]) && $email["smtpPassword"] != "");
-
-                    $mail = new PHPMailer(true);
-                    $mail->CharSet = "UTF-8";
-                    $mail->isSMTP();
-
-                    $mail->Host = $email['smtpAddress'];
-                    $mail->SMTPAuth = $smtpAuth;
-                    if ($smtpAuth) {
-                        $mail->Username = $email['smtpUsername'];
-                        $mail->Password = $email['smtpPassword'];
-                    }
-                    if ($email['encryption'] != "none") {
-                        $mail->SMTPSecure = $email['encryption'];
-                    }
-                    $mail->Port = $email['smtpPort'];
-
-                    $stmt = $db->prepare('SELECT * FROM household WHERE id = :userId');
-                    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+                // Re-validate at send time: a save-time check alone is bypassable via
+                // DNS rebinding between when the host was saved and when the cron fires.
+                if (!validate_smtp_host($email['smtpAddress'], (int) $email['smtpPort'], $db)) {
+                    echo "SSRF attempt detected for SMTP host. Email notifications not sent.<br />";
+                } else {
+                    $stmt = $db->prepare('SELECT * FROM user WHERE id = :user_id');
+                    $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
                     $result = $stmt->execute();
-                    $user = $result->fetchArray(SQLITE3_ASSOC);
+                    $defaultUser = $result->fetchArray(SQLITE3_ASSOC);
+                    $defaultEmail = $defaultUser['email'];
+                    $defaultName = $defaultUser['username'];
 
-                    $emailaddress = !empty($user['email']) ? $user['email'] : $defaultEmail;
-                    $name = !empty($user['name']) ? $user['name'] : $defaultName;
+                    foreach ($notifyEmail as $payerUserId => $perUser) {
+                        $message = buildCancellationMessage('', $perUser);
 
-                    $mail->setFrom($email['fromEmail'], 'Wallos App');
-                    $mail->addAddress($emailaddress, $name);
+                        $smtpAuth = (isset($email["smtpUsername"]) && $email["smtpUsername"] != "") || (isset($email["smtpPassword"]) && $email["smtpPassword"] != "");
 
-                    if (!empty($email['otherEmails'])) {
-                        $list = explode(';', $email['otherEmails']);
+                        $mail = new PHPMailer(true);
+                        $mail->CharSet = "UTF-8";
+                        $mail->isSMTP();
+                        $mail->Timeout = 15;
 
-                        // Avoid duplicate emails
-                        $list = array_unique($list);
-                        $list = array_filter($list, function ($value) use ($emailaddress) {
-                            return $value !== $emailaddress;
-                        });
-
-                        foreach($list as $value) {
-                            $mail->addCC(trim($value));
+                        $mail->Host = $email['smtpAddress'];
+                        $mail->SMTPAuth = $smtpAuth;
+                        if ($smtpAuth) {
+                            $mail->Username = $email['smtpUsername'];
+                            $mail->Password = $email['smtpPassword'];
                         }
-                    }
+                        if ($email['encryption'] != "none") {
+                            $mail->SMTPSecure = $email['encryption'];
+                        }
+                        $mail->Port = $email['smtpPort'];
 
-                    $mail->Subject = 'Wallos Cancellation Notification';
-                    $mail->Body = $message;
+                        $stmt = $db->prepare('SELECT * FROM household WHERE id = :payerId AND user_id = :ownerId');
+                        $stmt->bindValue(':payerId', $payerUserId, SQLITE3_INTEGER);
+                        $stmt->bindValue(':ownerId', $userId, SQLITE3_INTEGER);
+                        $result = $stmt->execute();
+                        $user = $result->fetchArray(SQLITE3_ASSOC);
 
-                    if ($mail->send()) {
-                        echo "Email Notifications sent<br />";
-                    } else {
-                        echo "Error sending notifications: " . $mail->ErrorInfo . "<br />";
+                        // A payer without an address is skipped, except the primary
+                        // ones, who have always fallen back to the account's email.
+                        if (empty($user['email']) && isset($notifyOtherPayers[$payerUserId]) && !isset($notify[$payerUserId])) {
+                            echo "No email set for " . ($user['name'] ?? $payerUserId) . ", skipped.<br />";
+                            continue;
+                        }
+
+                        $emailaddress = !empty($user['email']) ? $user['email'] : $defaultEmail;
+                        $name = !empty($user['name']) ? $user['name'] : $defaultName;
+
+                        $mail->setFrom($email['fromEmail'], 'Wallos App');
+                        $mail->addAddress($emailaddress, $name);
+
+                        if (!empty($email['otherEmails'])) {
+                            $list = explode(';', $email['otherEmails']);
+
+                            // Avoid duplicate emails
+                            $list = array_unique($list);
+                            $list = array_filter($list, function ($value) use ($emailaddress) {
+                                return $value !== $emailaddress;
+                            });
+
+                            foreach($list as $value) {
+                                $mail->addCC(trim($value));
+                            }
+                        }
+
+                        $mail->Subject = translate('wallos_cancellation_notification', $i18n);
+                        $mail->Body = $message;
+
+                        if ($mail->send()) {
+                            echo "Email Notifications sent<br />";
+                        } else {
+                            echo "Error sending notifications: " . $mail->ErrorInfo . "<br />";
+                        }
                     }
                 }
             }
@@ -287,15 +361,7 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
 
                         $title = translate('wallos_notification', $i18n);
 
-                        if ($user['name']) {
-                            $message = $user['name'] . ", the following subscriptions are up for cancellation:\n";
-                        } else {
-                            $message = "The following subscriptions are up for cancellation:\n";
-                        }
-
-                        foreach ($perUser as $subscription) {
-                            $message .= $subscription['name'] . " for " . $subscription['price'] . "\n";
-                        }
+                        $message = buildCancellationMessage($user['name'] ?? '', $perUser);
 
                         $postfields = [
                             'content' => $message
@@ -318,6 +384,8 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                             'Content-Type: application/json'
                         ]);
                         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
                         curl_setopt($ch, CURLOPT_RESOLVE, ["{$ssrf['host']}:{$ssrf['port']}:{$ssrf['ip']}"]);
 
                         $response = curl_exec($ch);
@@ -346,15 +414,7 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                         $result = $stmt->execute();
                         $user = $result->fetchArray(SQLITE3_ASSOC);
 
-                        if ($user['name']) {
-                            $message = $user['name'] . ", the following subscriptions are up for cancellation:\n";
-                        } else {
-                            $message = "The following subscriptions are up for cancellation:\n";
-                        }
-
-                        foreach ($perUser as $subscription) {
-                            $message .= $subscription['name'] . " for " . $subscription['price'] . "\n";
-                        }
+                        $message = buildCancellationMessage($user['name'] ?? '', $perUser);
 
                         $data = array(
                             'message' => $message,
@@ -367,6 +427,8 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
                         curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
                         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
                         curl_setopt(
                             $ch,
                             CURLOPT_HTTPHEADER,
@@ -401,15 +463,7 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                     $result = $stmt->execute();
                     $user = $result->fetchArray(SQLITE3_ASSOC);
 
-                    if ($user['name']) {
-                        $message = $user['name'] . ", the following subscriptions are up for cancellation:\n";
-                    } else {
-                        $message = "The following subscriptions are up for cancellation:\n";
-                    }
-
-                    foreach ($perUser as $subscription) {
-                        $message .= $subscription['name'] . " for " . $subscription['price'] . "\n";
-                    }
+                    $message = buildCancellationMessage($user['name'] ?? '', $perUser);
 
                     $data = array(
                         'chat_id' => $telegram['chatId'],
@@ -422,6 +476,8 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
                     curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
                     curl_setopt(
                         $ch,
                         CURLOPT_HTTPHEADER,
@@ -449,15 +505,7 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                     $result = $stmt->execute();
                     $user = $result->fetchArray(SQLITE3_ASSOC);
 
-                    if ($user['name']) {
-                        $message = $user['name'] . ", the following subscriptions are up for cancellation:\n";
-                    } else {
-                        $message = "The following subscriptions are up for cancellation:\n";
-                    }
-
-                    foreach ($perUser as $subscription) {
-                        $message .= $subscription['name'] . " for " . $subscription['price'] . "\n";
-                    }
+                    $message = buildCancellationMessage($user['name'] ?? '', $perUser);
 
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, "https://api.pushover.net/1/messages.json");
@@ -468,6 +516,8 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                         'message' => $message,
                     ]));
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
                     $result = curl_exec($ch);
 
@@ -494,20 +544,9 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                         $result = $stmt->execute();
                         $user = $result->fetchArray(SQLITE3_ASSOC);
 
-                        if ($user['name']) {
-                            $message = $user['name'] . ", the following subscriptions are up for cancellation:\n";
-                        } else {
-                            $message = "The following subscriptions are up for cancellation:\n";
-                        }
+                        $message = buildCancellationMessage($user['name'] ?? '', $perUser);
 
-                        foreach ($perUser as $subscription) {
-                            $message .= $subscription['name'] . " for " . $subscription['price'] . "\n";
-                        }
-
-                        $headers = json_decode($ntfy["headers"], true);
-                        $customheaders = array_map(function ($key, $value) {
-                            return "$key: $value";
-                        }, array_keys($headers), $headers);
+                        $customheaders = webhook_custom_headers($ntfy["headers"]);
 
                         $ch = curl_init();
 
@@ -519,6 +558,8 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                         curl_setopt($ch, CURLOPT_POSTFIELDS, $message);
                         curl_setopt($ch, CURLOPT_HTTPHEADER, $customheaders);
                         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
                         if ($ntfy['ignore_ssl']) {
                             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -566,7 +607,7 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                             $payload = str_replace("{{subscription_payer}}", $payer, $payload);
                             $payload = str_replace("{{subscription_date}}", $subscription['date'], $payload);
                             $payload = str_replace("{{subscription_url}}", $subscription['url'], $payload);
-                            $payload = str_replace("{{subscription_notes}}", $subscription['notes'], $payload);
+                            $payload = str_replace("{{subscription_notes}}", webhookJsonEscape($subscription['notes']), $payload);
                 
                             // Initialize cURL for each subscription
                             $ch = curl_init();
@@ -574,13 +615,19 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $webhook['request_method']);
                             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
                 
-                            // Add headers if they exist
-                            if (!empty($webhook['headers'])) {
-                                $customheaders = preg_split("/\r\n|\n|\r/", $webhook['headers']);
+                            // Add headers if they exist. The same reading as
+                            // every other job: this one used to split the field
+                            // into lines, so a value that worked here was a
+                            // value that ended the other run, and the other way
+                            // round.
+                            $customheaders = webhook_headers_with_content_type(webhook_custom_headers($webhook['headers']), $payload);
+                            if (!empty($customheaders)) {
                                 curl_setopt($ch, CURLOPT_HTTPHEADER, $customheaders);
                             }
                 
                             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
                 
                             // Handle SSL settings
                             if ($webhook['ignore_ssl']) {

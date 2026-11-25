@@ -324,17 +324,34 @@ function exportAsJson() {
         });
 }
 
+function csvField(value) {
+    const stringValue = String(value ?? '');
+    // Notes can now be multi-paragraph Markdown, so a field with an embedded
+    // newline is common, not an edge case - quote (RFC 4180) whenever a
+    // comma, quote, or newline would otherwise corrupt the row structure.
+    if (/[",\r\n]/.test(stringValue)) {
+        return '"' + stringValue.replace(/"/g, '""') + '"';
+    }
+    return stringValue;
+}
+
+// The BOM tells Excel the file is UTF-8; without it, "£" is read as Windows-1252
+// and shows up as "Â£" (#863).
+function csvDataUri(csv) {
+    return 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
+}
+
 function exportAsCsv() {
     fetch("endpoints/subscriptions/export.php")
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 const subscriptions = data.subscriptions;
-                const header = Object.keys(subscriptions[0]).join(',');
-                const csv = subscriptions.map(subscription => Object.values(subscription).join(',')).join('\n');
+                const header = Object.keys(subscriptions[0]).map(csvField).join(',');
+                const csv = subscriptions.map(subscription => Object.values(subscription).map(csvField).join(',')).join('\n');
                 const csvWithHeader = header + '\n' + csv;
                 const element = document.createElement('a');
-                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(csvWithHeader));
+                element.setAttribute('href', csvDataUri(csvWithHeader));
                 element.setAttribute('download', 'subscriptions.csv');
                 element.style.display = 'none';
                 document.body.appendChild(element);

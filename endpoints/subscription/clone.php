@@ -1,6 +1,8 @@
 <?php
 require_once '../../includes/connect_endpoint.php';
 require_once '../../includes/validate_endpoint.php';
+require_once '../../includes/subscription_payers.php';
+require_once '../../includes/subscription_categories.php';
 
 $postData = file_get_contents("php://input");
 $data = json_decode($postData, true);
@@ -19,7 +21,14 @@ if ($subscriptionToClone === false) {
     ]));
 }
 
-$query = "INSERT INTO subscriptions (name, logo, price, currency_id, next_payment, auto_renew, start_date, cycle, frequency, notes, payment_method_id, payer_user_id, category_id, notify, url, inactive, notify_days_before, user_id, cancellation_date, replacement_subscription_id) VALUES (:name, :logo, :price, :currency_id, :next_payment, :auto_renew, :start_date, :cycle, :frequency, :notes, :payment_method_id, :payer_user_id, :category_id, :notify, :url, :inactive, :notify_days_before, :user_id, :cancellation_date, :replacement_subscription_id)";
+$subscriptionToClone['cycle'] = in_array((int)$subscriptionToClone['cycle'], [1, 2, 3, 4, 5], true) ? (int)$subscriptionToClone['cycle'] : 3;
+$subscriptionToClone['frequency'] = max(1, min(366, (int)$subscriptionToClone['frequency']));
+if ($subscriptionToClone['cycle'] === 5) {
+    $subscriptionToClone['frequency'] = 1;
+    $subscriptionToClone['auto_renew'] = 0;
+}
+
+$query = "INSERT INTO subscriptions (name, logo, price, currency_id, next_payment, auto_renew, start_date, cycle, frequency, notes, payment_method_id, payer_user_id, category_id, folder_id, notify, url, inactive, notify_days_before, user_id, cancellation_date, replacement_subscription_id) VALUES (:name, :logo, :price, :currency_id, :next_payment, :auto_renew, :start_date, :cycle, :frequency, :notes, :payment_method_id, :payer_user_id, :category_id, :folder_id, :notify, :url, :inactive, :notify_days_before, :user_id, :cancellation_date, :replacement_subscription_id)";
 $cloneStmt = $db->prepare($query);
 $cloneStmt->bindValue(':name', $subscriptionToClone['name'], SQLITE3_TEXT);
 $cloneStmt->bindValue(':logo', $subscriptionToClone['logo'], SQLITE3_TEXT);
@@ -34,6 +43,7 @@ $cloneStmt->bindValue(':notes', $subscriptionToClone['notes'], SQLITE3_TEXT);
 $cloneStmt->bindValue(':payment_method_id', $subscriptionToClone['payment_method_id'], SQLITE3_INTEGER);
 $cloneStmt->bindValue(':payer_user_id', $subscriptionToClone['payer_user_id'], SQLITE3_INTEGER);
 $cloneStmt->bindValue(':category_id', $subscriptionToClone['category_id'], SQLITE3_INTEGER);
+$cloneStmt->bindValue(':folder_id', $subscriptionToClone['folder_id'], SQLITE3_INTEGER);
 $cloneStmt->bindValue(':notify', $subscriptionToClone['notify'], SQLITE3_INTEGER);
 $cloneStmt->bindValue(':url', $subscriptionToClone['url'], SQLITE3_TEXT);
 $cloneStmt->bindValue(':inactive', $subscriptionToClone['inactive'], SQLITE3_INTEGER);
@@ -43,10 +53,13 @@ $cloneStmt->bindValue(':cancellation_date', $subscriptionToClone['cancellation_d
 $cloneStmt->bindValue(':replacement_subscription_id', $subscriptionToClone['replacement_subscription_id'], SQLITE3_INTEGER);
 
 if ($cloneStmt->execute()) {
+    $clonedId = $db->lastInsertRowID();
+    saveSubscriptionPayers($db, $clonedId, getPayersBySubscription($db, [$subscriptionToClone])[$subscriptionToClone['id']] ?? []);
+    saveSubscriptionCategories($db, $clonedId, getCategoriesBySubscription($db, [$subscriptionToClone])[$subscriptionToClone['id']] ?? []);
     $response = [
         "success" => true,
         "message" => translate('success', $i18n),
-        "id" => $db->lastInsertRowID()
+        "id" => $clonedId
     ];
     echo json_encode($response);
 } else {

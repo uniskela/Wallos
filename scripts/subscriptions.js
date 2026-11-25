@@ -1,12 +1,6 @@
 let isSortOptionsOpen = false;
 let scrollTopBeforeOpening = 0;
 const shouldScroll = window.innerWidth <= 768;
-
-function toggleOpenSubscription(subId) {
-  const subscriptionElement = document.querySelector('.subscription[data-id="' + subId + '"]');
-  subscriptionElement.classList.toggle('is-open');
-}
-
 function toggleSortOptions() {
   const sortOptions = document.querySelector("#sort-options");
   sortOptions.classList.toggle("is-open");
@@ -17,6 +11,135 @@ function toggleNotificationDays() {
   const notifyCheckbox = document.querySelector("#notifications");
   const notifyDaysBefore = document.querySelector("#notify_days_before");
   notifyDaysBefore.disabled = !notifyCheckbox.checked;
+}
+
+// Multi-select used by the "Paid by" and "Category" fields. The hidden input
+// carries the selected ids as a comma separated list, first one being the
+// primary one. At least one option always stays selected.
+function multiSelectElements(wrapperId) {
+  const wrapper = document.querySelector(`#${wrapperId}`);
+  return {
+    wrapper,
+    toggle: wrapper.querySelector(".multi-select-toggle"),
+    list: wrapper.querySelector(".multi-select-options"),
+    input: wrapper.querySelector("input[type='hidden']"),
+  };
+}
+
+function getMultiSelection(wrapperId) {
+  const { input } = multiSelectElements(wrapperId);
+  return input.value === "" ? [] : input.value.split(",");
+}
+
+function setMultiSelection(wrapperId, ids) {
+  const { wrapper, list, input } = multiSelectElements(wrapperId);
+  const options = list.querySelectorAll("li[role='option']");
+  const wanted = ids.map(String).filter(id => list.querySelector(`li[data-value="${id}"]`));
+  if (wanted.length === 0 && options.length > 0) {
+    wanted.push(options[0].dataset.value);
+  }
+  options.forEach(option => {
+    option.setAttribute("aria-selected", wanted.includes(option.dataset.value) ? "true" : "false");
+  });
+  input.value = wanted.join(",");
+  const names = wanted.map(id => list.querySelector(`li[data-value="${id}"] .multi-select-name`).textContent.trim());
+  wrapper.querySelector(".multi-select-label").textContent = names.length > 0 ? names.join(", ") : wrapper.dataset.placeholder;
+}
+
+function toggleMultiOption(wrapperId, option) {
+  const current = getMultiSelection(wrapperId);
+  const id = option.dataset.value;
+  if (current.includes(id)) {
+    if (current.length === 1) {
+      return;
+    }
+    setMultiSelection(wrapperId, current.filter(value => value !== id));
+  } else {
+    setMultiSelection(wrapperId, [...current, id]);
+  }
+}
+
+function closeMultiSelect(wrapperId) {
+  const { wrapper, toggle, list } = multiSelectElements(wrapperId);
+  wrapper.classList.remove("is-open");
+  list.hidden = true;
+  toggle.setAttribute("aria-expanded", "false");
+}
+
+function openMultiSelect(wrapperId) {
+  const { wrapper, toggle, list } = multiSelectElements(wrapperId);
+  wrapper.classList.add("is-open");
+  list.hidden = false;
+  toggle.setAttribute("aria-expanded", "true");
+  const first = list.querySelector("li[aria-selected='true']") || list.querySelector("li");
+  if (first) {
+    first.focus();
+  }
+}
+
+function initMultiSelect(wrapperId) {
+  const { wrapper, toggle, list } = multiSelectElements(wrapperId);
+  list.querySelectorAll("li").forEach(option => option.tabIndex = -1);
+
+  toggle.addEventListener("click", () => {
+    wrapper.classList.contains("is-open") ? closeMultiSelect(wrapperId) : openMultiSelect(wrapperId);
+  });
+
+  toggle.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      openMultiSelect(wrapperId);
+    }
+  });
+
+  list.addEventListener("click", event => {
+    const option = event.target.closest("li[role='option']");
+    if (option) {
+      toggleMultiOption(wrapperId, option);
+      option.focus();
+    }
+  });
+
+  list.addEventListener("keydown", event => {
+    const options = Array.from(list.querySelectorAll("li"));
+    const index = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      options[Math.min(index + 1, options.length - 1)].focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      options[Math.max(index - 1, 0)].focus();
+    } else if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      if (index >= 0) {
+        toggleMultiOption(wrapperId, options[index]);
+      }
+    } else if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+      }
+      closeMultiSelect(wrapperId);
+      toggle.focus();
+    }
+  });
+
+  document.addEventListener("mousedown", event => {
+    if (wrapper.classList.contains("is-open") && !wrapper.contains(event.target)) {
+      closeMultiSelect(wrapperId);
+    }
+  });
+
+  setMultiSelection(wrapperId, getMultiSelection(wrapperId));
+}
+
+const multiSelectIds = ["payer_user_select", "category_select"];
+
+function initMultiSelects() {
+  multiSelectIds.forEach(id => {
+    if (document.querySelector(`#${id}`)) {
+      initMultiSelect(id);
+    }
+  });
 }
 
 function resetForm() {
@@ -45,6 +168,10 @@ function resetForm() {
   replacementSubscription.classList.add("hide");
   const form = document.querySelector("#subs-form");
   form.reset();
+  multiSelectIds.forEach(id => {
+    setMultiSelection(id, []);
+    closeMultiSelect(id);
+  });
   toggleOneTimeCycleUI(false);
   closeLogoSearch();
   const deleteButton = document.querySelector("#deletesub");
@@ -52,11 +179,22 @@ function resetForm() {
   deleteButton.removeAttribute("onClick");
 }
 
+// Picks the logo filename that reads well on the theme currently in use,
+// falling back to the original when there's no themed variant for it.
+function logoFilenameForCurrentTheme(subscription) {
+  if (!subscription.logo_text_color || !subscription.logo_variant) {
+    return subscription.logo;
+  }
+  const nativeTheme = subscription.logo_text_color === 'dark' ? 'light' : 'dark';
+  const currentTheme = document.body.classList.contains('dark') ? 'dark' : 'light';
+  return currentTheme === nativeTheme ? subscription.logo : subscription.logo_variant;
+}
+
 function fillEditFormFields(subscription) {
   const formTitle = document.querySelector("#form-title");
   formTitle.textContent = translate('edit_subscription');
   const logo = document.querySelector("#form-logo");
-  const logoFile = subscription.logo !== null ? "images/uploads/logos/" + subscription.logo : "";
+  const logoFile = subscription.logo !== null ? "images/uploads/logos/" + logoFilenameForCurrentTheme(subscription) : "";
   if (logoFile) {
     logo.src = logoFile;
     logo.style = 'display: block';
@@ -79,10 +217,16 @@ function fillEditFormFields(subscription) {
   toggleOneTimeCycleUI(subscription.cycle == 5);
   const paymentSelect = document.querySelector("#payment_method");
   paymentSelect.value = subscription.payment_method_id;
-  const categorySelect = document.querySelector("#category");
-  categorySelect.value = subscription.category_id;
-  const payerSelect = document.querySelector("#payer_user");
-  payerSelect.value = subscription.payer_user_id;
+  setMultiSelection("category_select", subscription.category_ids && subscription.category_ids.length > 0
+    ? subscription.category_ids
+    : [subscription.category_id]);
+  setMultiSelection("payer_user_select", subscription.payer_user_ids && subscription.payer_user_ids.length > 0
+    ? subscription.payer_user_ids
+    : [subscription.payer_user_id]);
+  const folderSelect = document.querySelector("#folder");
+  if (folderSelect) {
+    folderSelect.value = subscription.folder_id ?? 0;
+  }
 
   const startDate = document.querySelector("#start_date");
   startDate.value = subscription.start_date;
@@ -224,6 +368,7 @@ function deleteSubscription(event, id) {
         showSuccessMessage(translate('subscription_deleted'));
         fetchSubscriptions(null, null, "delete");
         closeAddSubscription();
+        closeSubscriptionDetails();
       } else {
         showErrorMessage(data.message || translate('error_deleting_subscription'));
       }
@@ -301,6 +446,69 @@ function renewSubscription(event, id) {
 }
 
 
+function markAsPaid(event, id) {
+  event.stopPropagation();
+  event.preventDefault();
+
+  fetch("endpoints/subscription/mark_paid.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": window.csrfToken,
+    },
+    body: JSON.stringify({ id: id }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(translate("network_response_error"));
+      }
+      return response.json();
+    })
+    .then((data) => {
+      if (data.success) {
+        fetchSubscriptions(data.id, event, "mark_paid");
+        showSuccessMessage(decodeURI(data.message));
+      } else {
+        showErrorMessage(data.message || translate("error"));
+      }
+    })
+    .catch((error) => {
+      showErrorMessage(error.message || translate("error"));
+    });
+}
+
+function unmarkPaid(event, id) {
+  event.stopPropagation();
+  event.preventDefault();
+
+  fetch("endpoints/subscription/unmark_paid.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": window.csrfToken,
+    },
+    body: JSON.stringify({ id: id }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(translate("network_response_error"));
+      }
+      return response.json();
+    })
+    .then((data) => {
+      if (data.success) {
+        fetchSubscriptions(data.id, event, "unmark_paid");
+        showSuccessMessage(decodeURI(data.message));
+      } else {
+        showErrorMessage(data.message || translate("error"));
+      }
+    })
+    .catch((error) => {
+      showErrorMessage(error.message || translate("error"));
+    });
+}
+
+
 function setSearchButtonStatus() {
 
   const nameInput = document.querySelector("#name");
@@ -317,49 +525,196 @@ function setSearchButtonStatus() {
 function searchLogo() {
   const nameInput = document.querySelector("#name");
   const searchTerm = nameInput.value.trim();
-  if (searchTerm !== "") {
-    const logoSearchPopup = document.querySelector("#logo-search-results");
-    logoSearchPopup.classList.add("is-open");
-    const imageSearchUrl = `endpoints/logos/search.php?search=${searchTerm}`;
-    fetch(imageSearchUrl)
-      .then(response => response.json())
+  if (searchTerm === "") {
+    nameInput.focus();
+    return;
+  }
+
+  const logoSearchPopup = document.querySelector("#logo-search-results");
+  const logoResults = document.querySelector("#logo-search-images");
+  const logoNav = document.querySelector("#logo-search-nav");
+  const logoSearchBackdrop = document.querySelector("#logo-search-backdrop");
+  logoSearchPopup.classList.add("is-open");
+  if (logoSearchBackdrop) {
+    logoSearchBackdrop.classList.add("is-open");
+  }
+  const subscriptionForm = document.querySelector("#subscription-form");
+  if (subscriptionForm) {
+    subscriptionForm.classList.add("scroll-locked");
+  }
+
+  const queryInput = document.querySelector("#logo-search-query");
+  queryInput.value = searchTerm;
+
+  runLogoSearch(searchTerm);
+}
+
+function submitLogoSearch() {
+  const queryInput = document.querySelector("#logo-search-query");
+  const searchTerm = queryInput.value.trim();
+  if (searchTerm === "") {
+    queryInput.focus();
+    return;
+  }
+
+  runLogoSearch(searchTerm);
+}
+
+const logoSearchQueryInput = document.querySelector("#logo-search-query");
+const logoSearchSubmitButton = document.querySelector("#logo-search-submit");
+
+if (logoSearchQueryInput && logoSearchSubmitButton) {
+  logoSearchSubmitButton.addEventListener("click", submitLogoSearch);
+  logoSearchQueryInput.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitLogoSearch();
+    }
+  });
+}
+
+function runLogoSearch(searchTerm) {
+  const logoSearchPopup = document.querySelector("#logo-search-results");
+  const logoResults = document.querySelector("#logo-search-images");
+  const logoNav = document.querySelector("#logo-search-nav");
+  const logoSearchTitle = document.querySelector("#logo-search-title");
+  if (logoSearchTitle) {
+    const baseTitle = logoSearchTitle.dataset.title;
+    logoSearchTitle.textContent = `${baseTitle}: ${searchTerm}`;
+  }
+
+  // One section per source, queried in parallel and filled as each response lands
+  const encodedSearchTerm = encodeURIComponent(searchTerm);
+  const sources = [
+    { label: 'selfh.st', url: `endpoints/logos/icon_search.php?search=${encodedSearchTerm}&source=selfhst` },
+    { label: 'Dashboard Icons', url: `endpoints/logos/icon_search.php?search=${encodedSearchTerm}&source=dashboardicons` },
+    { label: 'DuckDuckGo', url: `endpoints/logos/search.php?search=${encodedSearchTerm}&source=duckduckgo` },
+    { label: 'Brave', url: `endpoints/logos/search.php?search=${encodedSearchTerm}&source=brave` },
+  ];
+
+  // Google requires user-provided API credentials; the section only exists when configured
+  if (logoSearchPopup.dataset.googleSearch) {
+    sources.unshift({ label: 'Google', url: `endpoints/logos/google_search.php?search=${encodedSearchTerm}` });
+  }
+
+  logoResults.innerHTML = "";
+  if (logoNav) {
+    logoNav.innerHTML = "";
+  }
+
+  sources.forEach(source => {
+    const section = document.createElement("div");
+    section.className = "logo-search-section";
+
+    const title = document.createElement("h4");
+    title.textContent = source.label;
+    section.appendChild(title);
+
+    const resultsContainer = document.createElement("div");
+    resultsContainer.className = "logo-search-section-results";
+    section.appendChild(resultsContainer);
+
+    logoResults.appendChild(section);
+    showSearchState(resultsContainer, 'loading');
+
+    if (logoNav) {
+      const navItem = document.createElement("button");
+      navItem.type = "button";
+      navItem.className = "logo-search-nav-item";
+      navItem.textContent = source.label;
+      navItem.onclick = function () {
+        const targetTop = section.getBoundingClientRect().top - logoResults.getBoundingClientRect().top + logoResults.scrollTop;
+        logoResults.scrollTo({ top: targetTop, behavior: 'smooth' });
+      };
+      logoNav.appendChild(navItem);
+    }
+
+    fetchLogoSearchSource(source.url)
       .then(data => {
-        if (data.results) {
-          displayImageResults(data.results);
+        if (data.results && data.results.length > 0) {
+          displayImageResults(data.results, resultsContainer);
         } else if (data.error) {
-          console.error(data.error);
+          console.error(source.label, data.error);
+          showSearchState(resultsContainer, 'error');
+        } else {
+          showSearchState(resultsContainer, 'empty');
         }
       })
       .catch(error => {
-        console.error(translate('error_fetching_image_results'), error);
+        console.error(translate('error_fetching_image_results'), source.label, error);
+        showSearchState(resultsContainer, 'error');
       });
-  } else {
-    nameInput.focus();
-  }
+  });
 }
 
-function displayImageResults(imageSources) {
-  const logoResults = document.querySelector("#logo-search-images");
-  logoResults.innerHTML = "";
+function fetchLogoSearchSource(url, retry = true) {
+  return fetch(url, {
+    cache: "no-store",
+    headers: { "Accept": "application/json" },
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.text();
+    })
+    .then(body => {
+      try {
+        return JSON.parse(body);
+      } catch (error) {
+        throw new Error("Invalid JSON response");
+      }
+    })
+    .catch(error => {
+      if (retry) {
+        // Wait a moment before retrying: sources like Brave rate-limit
+        // aggressively, and retrying instantly just repeats the failure.
+        return new Promise(resolve => setTimeout(resolve, 600))
+          .then(() => fetchLogoSearchSource(url, false));
+      }
+      throw error;
+    });
+}
+
+function displayImageResults(imageSources, container) {
+  container.innerHTML = "";
 
   imageSources.forEach(src => {
     const img = document.createElement("img");
     img.src = src.thumbnail || src.image;
     img.onclick = function () {
-      selectWebLogo(src.thumbnail || src.image);
+      const selectedUrl = getSupportedLogoUrl(src);
+      if (selectedUrl) {
+        selectWebLogo(selectedUrl, img.src);
+      }
     };
     img.onerror = function () {
       this.parentNode.removeChild(this);
     };
-    logoResults.appendChild(img);
+    container.appendChild(img);
   });
 }
 
-function selectWebLogo(url) {
+function getSupportedLogoUrl(source) {
+  if (source.image) {
+    try {
+      const imagePath = new URL(source.image, window.location.href).pathname.toLowerCase();
+      if (/\.(png|jpe?g|gif|webp)$/.test(imagePath)) {
+        return source.image;
+      }
+    } catch (error) {
+      // Fall through to the raster thumbnail for malformed source URLs.
+    }
+  }
+
+  return source.thumbnail || "";
+}
+
+function selectWebLogo(url, previewUrl = url) {
   closeLogoSearch();
   const logoPreview = document.querySelector("#form-logo");
   const logoUrl = document.querySelector("#logo-url");
-  logoPreview.src = url;
+  logoPreview.src = previewUrl;
   logoPreview.style.display = 'block';
   logoUrl.value = url;
 }
@@ -367,8 +722,161 @@ function selectWebLogo(url) {
 function closeLogoSearch() {
   const logoSearchPopup = document.querySelector("#logo-search-results");
   logoSearchPopup.classList.remove("is-open");
+  const logoSearchBackdrop = document.querySelector("#logo-search-backdrop");
+  if (logoSearchBackdrop) {
+    logoSearchBackdrop.classList.remove("is-open");
+  }
+  const subscriptionForm = document.querySelector("#subscription-form");
+  if (subscriptionForm) {
+    subscriptionForm.classList.remove("scroll-locked");
+  }
+  const logoSearchTitle = document.querySelector("#logo-search-title");
+  if (logoSearchTitle) {
+    logoSearchTitle.textContent = logoSearchTitle.dataset.title;
+  }
   const logoResults = document.querySelector("#logo-search-images");
   logoResults.innerHTML = "";
+}
+
+function renderSubscriptionLogo(subscription) {
+  if (!subscription.logo) {
+    return "";
+  }
+  if (!subscription.logo_text_color || !subscription.logo_variant) {
+    return `<img src="${escapeHtml(subscription.logo)}" class="">`;
+  }
+  // The theme the original file already reads well on; styles.css shows the matching image.
+  const nativeTheme = subscription.logo_text_color === "dark" ? "light" : "dark";
+  return `<img src="${escapeHtml(subscription.logo)}" class="logo-theme-original" data-native-theme="${nativeTheme}">`
+    + `<img src="${escapeHtml(subscription.logo_variant)}" class="logo-theme-variant" data-native-theme="${nativeTheme}">`;
+}
+
+function renderSubscription(subscription, data) {
+  const id = subscription.id;
+  const labels = data.labels;
+  const icons = data.icons;
+  const hasLogo = !!subscription.logo;
+  const extraClasses = (subscription.inactive ? " inactive" : "") + (subscription.auto_renew ? "" : " manual") + (subscription.folder_color ? " in-folder" : "") + (subscription.paid_this_cycle ? " paid" : "");
+  const folderAttrs = subscription.folder_color
+    ? ` style="--folder-color: ${escapeHtml(subscription.folder_color)}" title="${escapeHtml(subscription.folder_name)}"`
+    : "";
+
+  const canMarkPaid = subscription.can_toggle_paid && !subscription.paid_this_cycle;
+
+  let mobileActions = "";
+  if (data.mobile_navigation) {
+    mobileActions = `
+      <div class="mobile-actions" data-id="${id}">
+        <button class="mobile-action-clone"></button>
+        <button class="mobile-action-clone" onClick="cloneSubscription(event, ${id})">${icons.clone} Clone</button>
+        <button class="mobile-action-delete" onClick="deleteSubscription(event, ${id})">${icons.delete} Delete</button>
+        ${subscription.can_renew ? `<button class="mobile-action-renew" onClick="renewSubscription(event, ${id})">${icons.renew} Renew</button>` : ""}
+        ${canMarkPaid ? `<button class="mobile-action-paid" onClick="markAsPaid(event, ${id})">${icons.paid} ${escapeHtml(labels.paid)}</button>` : ""}
+        <button class="mobile-action-edit" onClick="openEditSubscription(event, ${id})">${icons.edit} Edit</button>
+      </div>`;
+  }
+
+  const cycleIcon = subscription.one_time ? "" : (subscription.auto_renew ? icons.automatic : icons.manual);
+  const originalPrice = subscription.original_price
+    ? `<span class="original_price">(${escapeHtml(subscription.original_price)})</span>`
+    : "";
+  const paymentIcon = subscription.payment_method_icon
+    ? `<img src="${escapeHtml(subscription.payment_method_icon)}" title="${escapeHtml(labels.payment_method)}: ${escapeHtml(subscription.payment_method_name)}" />`
+    : "";
+  const expandClass = data.mobile_navigation ? "mobileNavigationHideOnMobile" : "";
+  const renewItem = subscription.can_renew
+    ? `<li class="renew" title="${escapeHtml(labels.renew)}" onClick="renewSubscription(event, ${id})"><i class="fa-solid fa-rotate-right"></i> ${escapeHtml(labels.renew)}</li>`
+    : "";
+  const renewBackAction = subscription.can_renew
+    ? `<button type="button" class="back-action" onClick="unflipCard(${id}); renewSubscription(event, ${id})"><i class="fa-solid fa-rotate-right"></i> ${escapeHtml(labels.renew)}</button>`
+    : "";
+  let paidItem = "";
+  if (subscription.can_toggle_paid) {
+    paidItem = subscription.paid_this_cycle
+      ? `<li class="mark-paid" title="${escapeHtml(labels.mark_as_unpaid)}" onClick="unmarkPaid(event, ${id})"><i class="fa-regular fa-circle-xmark"></i> ${escapeHtml(labels.mark_as_unpaid)}</li>`
+      : `<li class="mark-paid" title="${escapeHtml(labels.mark_as_paid)}" onClick="markAsPaid(event, ${id})"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(labels.mark_as_paid)}</li>`;
+  }
+  const progress = subscription.progress !== null
+    ? `<div class="subscription-progress-container"><span class="subscription-progress" style="width: ${Number(subscription.progress)}%;"></span></div>`
+    : "";
+
+  return `
+    <div class="subscription-container">
+      ${mobileActions}
+      <label class="bulk-select">
+        <input type="checkbox" class="bulk-select-checkbox" value="${id}" onChange="updateBulkSelection()">
+      </label>
+      <div class="subscription${extraClasses}"${folderAttrs} onClick="showSubscriptionDetails(event, ${id})" data-id="${id}" data-name="${escapeHtml(subscription.name)}">
+        <div class="subscription-main">
+          <span class="logo ${hasLogo ? "" : "hideOnMobile"}">${hasLogo ? renderSubscriptionLogo(subscription) : icons.logo}</span>
+          <span class="name ${hasLogo ? "hideOnMobile" : ""}">${escapeHtml(subscription.name)}</span>
+          <span class="cycle" title="${escapeHtml(subscription.cycle_title)}">${cycleIcon} ${escapeHtml(subscription.billing_cycle)}</span>
+          <span class="next">${escapeHtml(subscription.next_payment)}</span>
+          <span class="price"><span class="value">${escapeHtml(subscription.price)} ${originalPrice}</span></span>
+          <span class="payment_method">${paymentIcon}</span>
+          <button type="button" class="actions-expand ${expandClass}" onClick="expandActions(event, ${id})">
+            <i class="fas fa-ellipsis-v"></i>
+          </button>
+          <ul class="actions">
+            <li class="edit" title="${escapeHtml(labels.edit_subscription)}" onClick="openEditSubscription(event, ${id})"><i class="fa-solid fa-pen-to-square"></i> ${escapeHtml(labels.edit_subscription)}</li>
+            <li class="delete" title="${escapeHtml(labels.delete)}" onClick="deleteSubscription(event, ${id})"><i class="fa-solid fa-trash-can"></i> ${escapeHtml(labels.delete)}</li>
+            <li class="clone" title="${escapeHtml(labels.clone)}" onClick="cloneSubscription(event, ${id})"><i class="fa-solid fa-copy"></i> ${escapeHtml(labels.clone)}</li>
+            ${renewItem}
+            ${paidItem}
+          </ul>
+        </div>
+        <div class="subscription-back" inert>
+          <div class="subscription-back-header">
+            <span class="subscription-back-title">${escapeHtml(subscription.name)}</span>
+            <button type="button" class="subscription-back-close" onClick="event.stopPropagation(); unflipCard(${id})" title="${escapeHtml(labels.cancel)}">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <button type="button" class="back-action" onClick="unflipCard(${id}); openEditSubscription(event, ${id})"><i class="fa-solid fa-pen-to-square"></i> ${escapeHtml(labels.edit)}</button>
+          <button type="button" class="back-action" onClick="unflipCard(${id}); cloneSubscription(event, ${id})"><i class="fa-solid fa-copy"></i> ${escapeHtml(labels.clone)}</button>
+          ${renewBackAction}
+          <button type="button" class="back-action delete" onClick="unflipCard(${id}); deleteSubscription(event, ${id})"><i class="fa-solid fa-trash-can"></i> ${escapeHtml(labels.delete)}</button>
+        </div>
+      </div>
+      ${progress}
+    </div>`;
+}
+
+function renderSubscriptions(data) {
+  if (data.subscriptions.length === 0 && data.total === 0) {
+    const messages = data.messages;
+    return `
+      <div class="no-matching-subscriptions">
+        <p>${escapeHtml(messages.no_matching_subscriptions)}</p>
+        <button class="button" onClick="clearFilters()">
+          <span class="fa-solid fa-minus-circle"></span> ${escapeHtml(messages.clear_filters)}
+        </button>
+        <img src="images/siteimages/empty.png" alt="${escapeHtml(messages.empty_page)}" />
+      </div>`;
+  }
+
+  return data.subscriptions.map(subscription => {
+    const headings = subscription.headings
+      .map(heading => `<div class="subscription-list-title">${escapeHtml(heading)}</div>`)
+      .join("");
+    return headings + renderSubscription(subscription, data);
+  }).join("");
+}
+
+// Keeps the folder cards above the list in step with the subscriptions: the
+// count and monthly total change when a subscription is added, edited or moved.
+function updateFolderCards(folders) {
+  if (!folders) return;
+  Object.keys(folders).forEach(folderId => {
+    const card = document.querySelector(`.folder-card[data-folderid="${folderId}"]`);
+    if (!card) return;
+    const meta = card.querySelector('.folder-card-meta');
+    if (meta) meta.textContent = folders[folderId].meta;
+    const total = card.querySelector('.folder-card-total');
+    if (total && total.firstChild && total.firstChild.nodeType === Node.TEXT_NODE) {
+      total.firstChild.nodeValue = ` ${folders[folderId].total} `;
+    }
+  });
 }
 
 function fetchSubscriptions(id, event, initiator) {
@@ -377,6 +885,9 @@ function fetchSubscriptions(id, event, initiator) {
 
   if (activeFilters['categories'].length > 0) {
     getSubscriptions += `?categories=${activeFilters['categories']}`;
+  }
+  if (activeFilters['folders'].length > 0) {
+    getSubscriptions += getSubscriptions.includes("?") ? `&folders=${activeFilters['folders']}` : `?folders=${activeFilters['folders']}`;
   }
   if (activeFilters['members'].length > 0) {
     getSubscriptions += getSubscriptions.includes("?") ? `&members=${activeFilters['members']}` : `?members=${activeFilters['members']}`;
@@ -393,18 +904,25 @@ function fetchSubscriptions(id, event, initiator) {
   if (activeFilters['notifications'].length > 0) {
     getSubscriptions += getSubscriptions.includes("?") ? `&notifications=${activeFilters['notifications']}` : `?notifications=${activeFilters['notifications']}`;
   }
+  if (activeFilters['paidStatus'] !== "") {
+    getSubscriptions += getSubscriptions.includes("?") ? `&paidStatus=${activeFilters['paidStatus']}` : `?paidStatus=${activeFilters['paidStatus']}`;
+  }
 
   fetch(getSubscriptions)
-    .then(response => response.text())
-    .then(data => {
-      if (data) {
-        subscriptionsContainer.innerHTML = data;
+    .then(response => response.json().catch(() => null).then(data => ({ response, data })))
+    .then(({ response, data }) => {
+      if (!data) {
+        throw new Error(`Unexpected response (${response.status})`);
+      }
+      if (data.success) {
+        subscriptionsContainer.innerHTML = renderSubscriptions(data);
+        updateFolderCards(data.folders);
         const mainActions = document.querySelector("#main-actions");
-        if (data.includes("no-matching-subscriptions")) {
-          // mainActions.classList.add("hidden");
-        } else {
+        if (data.total > 0 || data.subscriptions.length > 0) {
           mainActions.classList.remove("hidden");
         }
+      } else {
+        subscriptionsContainer.innerHTML = `<p class="no-matching-subscriptions">${escapeHtml(data.message || "")}</p>`;
       }
 
       if (initiator == "clone" && id && event) {
@@ -412,6 +930,7 @@ function fetchSubscriptions(id, event, initiator) {
       }
 
       setSwipeElements();
+      updateBulkSelection();
       if (initiator === "add") {
         if (document.getElementsByClassName('subscription').length === 1) {
           setTimeout(() => {
@@ -419,10 +938,28 @@ function fetchSubscriptions(id, event, initiator) {
           }, 1000);
         }
       }
+      searchSubscriptions();
     })
     .catch(error => {
       console.error(translate('error_reloading_subscription'), error);
     });
+}
+
+function setSubscriptionsView(view) {
+  const subscriptionsContainer = document.querySelector("#subscriptions");
+  subscriptionsContainer.classList.toggle("grid-view", view === "grid");
+  document.querySelectorAll('.subscription').forEach((card) => {
+    setCardFlipped(card, false);
+    card.style.transform = '';
+    card.style.transition = '';
+    card.style.zIndex = '';
+  });
+  document.querySelector("#view-list-button").classList.toggle("selected", view !== "grid");
+  document.querySelector("#view-grid-button").classList.toggle("selected", view === "grid");
+
+  const expirationDate = new Date();
+  expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+  document.cookie = "subscriptionsView=" + view + "; expires=" + expirationDate.toUTCString() + "; SameSite=Lax";
 }
 
 function setSortOption(sortOption) {
@@ -491,6 +1028,9 @@ function submitFormData(formData, submitButton, endpoint) {
     .then((data) => {
       if (data.status === "Success") {
         showSuccessMessage(data.message);
+        if (data.logo_warning) {
+          showErrorMessage(data.logo_warning);
+        }
         fetchSubscriptions(null, null, "add");
         closeAddSubscription();
       } else {
@@ -516,6 +1056,8 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
+  initMultiSelects();
+
   const subscriptionForm = document.querySelector("#subs-form");
   const submitButton = document.querySelector("#save-button");
   const endpoint = "endpoints/subscription/add.php";
@@ -591,7 +1133,15 @@ function clearSearch() {
   const searchInput = document.querySelector("#search");
 
   searchInput.value = "";
+  searchInput.parentElement.classList.remove("mobile-expanded");
   searchSubscriptions();
+}
+
+function toggleMobileSearch() {
+  const searchContainer = document.querySelector(".top-actions .search");
+
+  searchContainer.classList.add("mobile-expanded");
+  document.querySelector("#search").focus();
 }
 
 function closeSubMenus() {
@@ -612,15 +1162,20 @@ function setSwipeElements() {
       let currentX = 0;
       let currentY = 0;
       let translateX = 0;
-      const maxTranslateX = element.classList.contains('manual') ? -240 : -180;
+      // Every action button is 60px wide; the first button is an empty spacer
+      // that stays under the card, so it doesn't count towards the reveal.
+      const actionButtons = element.closest('.subscription-container')?.querySelectorAll('.mobile-actions > button').length ?? 4;
+      const maxTranslateX = -60 * Math.max(1, actionButtons - 1);
 
       element.addEventListener('touchstart', (e) => {
+        if (element.closest('.subscriptions.grid-view')) return; // no swipe actions in grid view
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         element.style.transition = ''; // Remove transition for smooth dragging
       });
 
       element.addEventListener('touchmove', (e) => {
+        if (element.closest('.subscriptions.grid-view')) return;
         currentX = e.touches[0].clientX;
         currentY = e.touches[0].clientY;
 
@@ -640,6 +1195,7 @@ function setSwipeElements() {
       });
 
       element.addEventListener('touchend', () => {
+        if (element.closest('.subscriptions.grid-view')) return;
         // Check the final swipe position to determine snap behavior
         if (translateX < maxTranslateX / 2) {
           // If more than halfway to the left, snap fully open
@@ -659,11 +1215,13 @@ function setSwipeElements() {
 
 const activeFilters = [];
 activeFilters['categories'] = [];
+activeFilters['folders'] = [];
 activeFilters['members'] = [];
 activeFilters['payments'] = [];
 activeFilters['state'] = "";
 activeFilters['renewalType'] = "";
 activeFilters['notifications'] = [];
+activeFilters['paidStatus'] = "";
 
 document.addEventListener("DOMContentLoaded", function () {
   var filtermenu = document.querySelector('#filtermenu-button');
@@ -725,6 +1283,20 @@ document.querySelectorAll('.filter-item').forEach(function (item) {
         activeFilters['categories'].push(categoryId);
         this.classList.add('selected');
       }
+    } else if (this.hasAttribute('data-folderid')) {
+      const folderId = this.getAttribute('data-folderid');
+      if (activeFilters['folders'].includes(folderId)) {
+        const folderIndex = activeFilters['folders'].indexOf(folderId);
+        activeFilters['folders'].splice(folderIndex, 1);
+        this.classList.remove('selected');
+      } else {
+        activeFilters['folders'].push(folderId);
+        this.classList.add('selected');
+      }
+      const folderCard = document.querySelector(`.folder-card[data-folderid="${folderId}"]`);
+      if (folderCard) {
+        folderCard.classList.toggle('selected', this.classList.contains('selected'));
+      }
     } else if (this.hasAttribute('data-memberid')) {
       const memberId = this.getAttribute('data-memberid');
       if (activeFilters['members'].includes(memberId)) {
@@ -769,6 +1341,18 @@ document.querySelectorAll('.filter-item').forEach(function (item) {
         });
         this.classList.add('selected');
       }
+    } else if (this.hasAttribute('data-paidstatus')) {
+      const paidStatus = this.getAttribute('data-paidstatus');
+      if (activeFilters['paidStatus'] === paidStatus) {
+        activeFilters['paidStatus'] = "";
+        this.classList.remove('selected');
+      } else {
+        activeFilters['paidStatus'] = paidStatus;
+        Array.from(this.parentNode.children).forEach(sibling => {
+          sibling.classList.remove('selected');
+        });
+        this.classList.add('selected');
+      }
     } else if (this.hasAttribute('data-notificationtype')) {
       const notifType = this.getAttribute('data-notificationtype');
       if (activeFilters['notifications'].includes(notifType)) {
@@ -781,9 +1365,11 @@ document.querySelectorAll('.filter-item').forEach(function (item) {
       }
     }
 
-    if (activeFilters['categories'].length > 0 || activeFilters['members'].length > 0 ||
+    if (activeFilters['categories'].length > 0 || activeFilters['folders'].length > 0 ||
+       activeFilters['members'].length > 0 ||
        activeFilters['payments'].length > 0 || activeFilters['state'] !== "" ||
-       activeFilters['renewalType'] !== "" || activeFilters['notifications'].length > 0) {
+       activeFilters['renewalType'] !== "" || activeFilters['notifications'].length > 0 ||
+       activeFilters['paidStatus'] !== "") {
       document.querySelector('#clear-filters').classList.remove('hide');
     } else {
       document.querySelector('#clear-filters').classList.add('hide');
@@ -793,18 +1379,36 @@ document.querySelectorAll('.filter-item').forEach(function (item) {
   });
 });
 
+// The folder chips above the list mirror the folder entries of the filter
+// menu: clicking a chip just clicks its menu counterpart so all the filter
+// bookkeeping lives in one place.
+document.querySelectorAll('.folder-card').forEach(function (chip) {
+  chip.addEventListener('click', function () {
+    const folderId = this.getAttribute('data-folderid');
+    const menuItem = document.querySelector(`.filter-item[data-folderid="${folderId}"]`);
+    if (menuItem) {
+      menuItem.click();
+    }
+  });
+});
+
 function clearFilters() {
   const searchInput = document.querySelector("#search");
   searchInput.value = "";
   activeFilters['categories'] = [];
+  activeFilters['folders'] = [];
   activeFilters['members'] = [];
   activeFilters['payments'] = [];
   activeFilters['state'] = "";
   activeFilters['renewalType'] = "";
   activeFilters['notifications'] = [];
+  activeFilters['paidStatus'] = "";
 
   document.querySelectorAll('.filter-item').forEach(function (item) {
     item.classList.remove('selected');
+  });
+  document.querySelectorAll('.folder-card').forEach(function (chip) {
+    chip.classList.remove('selected');
   });
   document.querySelector('#clear-filters').classList.add('hide');
   fetchSubscriptions(null, null, "clearfilters");
@@ -821,10 +1425,46 @@ document.addEventListener('click', function (event) {
   }
 });
 
+// A flipped card shows its back face via a CSS 3D transform while the front
+// stays in the DOM (and vice versa when unflipped) -- backface-visibility
+// only hides a face visually, it doesn't remove it from the tab order. The
+// `inert` attribute is what actually keeps focus (and assistive tech) out of
+// whichever face is currently turned away from the user.
+function setCardFlipped(card, flipped) {
+  card.classList.toggle('flipped', flipped);
+  const back = card.querySelector('.subscription-back');
+  const front = card.querySelector('.subscription-main');
+  if (back) {
+    back.inert = !flipped;
+  }
+  if (front) {
+    front.inert = flipped;
+  }
+}
+
+function unflipCard(subscriptionId) {
+  const card = document.querySelector(`.subscription[data-id="${subscriptionId}"]`);
+  if (card) {
+    setCardFlipped(card, false);
+  }
+}
+
 function expandActions(event, subscriptionId) {
   event.stopPropagation();
   event.preventDefault();
   const subscriptionDiv = document.querySelector(`.subscription[data-id="${subscriptionId}"]`);
+
+  // Grid view: flip the card over instead of opening the dropdown
+  if (subscriptionDiv.closest('.subscriptions.grid-view')) {
+    document.querySelectorAll('.subscription.flipped').forEach((card) => {
+      if (card !== subscriptionDiv) {
+        setCardFlipped(card, false);
+      }
+    });
+    setCardFlipped(subscriptionDiv, !subscriptionDiv.classList.contains('flipped'));
+    return;
+  }
+
   const actions = subscriptionDiv.querySelector('.actions');
 
   // Close all other open actions
@@ -853,27 +1493,33 @@ function expandActions(event, subscriptionId) {
 }
 
 function swipeHintAnimation() {
-  if (window.mobileNavigation && window.matchMedia('(max-width: 768px)').matches) {
-    const maxAnimations = 3;
-    const cookieName = 'swipeHintCount';
-
-    let count = parseInt(getCookie(cookieName)) || 0;
-    if (count < maxAnimations) {
-      const firstElement = document.querySelector('.subscription');
-      if (firstElement) {
-        firstElement.style.transition = 'transform 0.3s ease';
-        firstElement.style.transform = 'translateX(-80px)';
-
-        setTimeout(() => {
-          firstElement.style.transform = 'translateX(0px)';
-          firstElement.style.zIndex = '1';
-        }, 600);
-      }
-
-      count++;
-      document.cookie = `${cookieName}=${count}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Lax`;
-    }
+  // The swipe hint only exists in list view: no swipe actions in grid view.
+  if (!window.mobileNavigation || !window.matchMedia('(max-width: 768px)').matches) {
+    return;
   }
+
+  const firstElement = document.querySelector('.subscription');
+  if (!firstElement || firstElement.closest('.subscriptions.grid-view')) {
+    return;
+  }
+
+  const maxAnimations = 3;
+  const cookieName = 'swipeHintCount';
+  let count = parseInt(getCookie(cookieName)) || 0;
+  if (count >= maxAnimations) {
+    return;
+  }
+
+  firstElement.style.transition = 'transform 0.3s ease';
+  firstElement.style.transform = 'translateX(-80px)';
+
+  setTimeout(() => {
+    firstElement.style.transform = 'translateX(0px)';
+    firstElement.style.zIndex = '1';
+  }, 600);
+
+  count++;
+  document.cookie = `${cookieName}=${count}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Lax`;
 }
 
 function toggleOneTimeCycleUI(isOneTime) {
@@ -974,8 +1620,184 @@ function toISOStringWithTimezone(date) {
     ':' + minutesOffset;
 }
 
+function insertMarkdownSyntax(textarea, prefix, suffix, placeholder) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end) || placeholder;
+
+  textarea.setRangeText(prefix + selected + suffix, start, end, 'select');
+  textarea.focus();
+  textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+}
+
+function applyNotesMarkdown(action) {
+  const textarea = document.querySelector('#notes');
+  if (!textarea) {
+    return;
+  }
+
+  switch (action) {
+    case 'bold':
+      insertMarkdownSyntax(textarea, '**', '**', translate('notes_bold'));
+      break;
+    case 'italic':
+      insertMarkdownSyntax(textarea, '_', '_', translate('notes_italic'));
+      break;
+    case 'list': {
+      const start = textarea.selectionStart;
+      const lineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
+      textarea.setRangeText('- ', lineStart, lineStart, 'end');
+      textarea.focus();
+      break;
+    }
+    case 'link':
+      insertMarkdownSyntax(textarea, '[', '](https://)', translate('notes_link'));
+      break;
+  }
+}
+
 window.addEventListener('load', () => {
   if (document.querySelector('.subscription')) {
     swipeHintAnimation();
   }
+});
+
+function visibleBulkCheckboxes() {
+  return Array.from(document.querySelectorAll(".subscription-container:not(.hide) .bulk-select-checkbox"));
+}
+
+function toggleBulkMode() {
+  const active = document.querySelector("#subscriptions").classList.toggle("bulk-mode");
+  document.querySelector("#bulk-toolbar").classList.toggle("is-open", active);
+  document.querySelectorAll(".bulk-mode-button").forEach((button) => button.classList.toggle("selected", active));
+
+  if (!active) {
+    document.querySelectorAll(".bulk-select-checkbox").forEach((checkbox) => checkbox.checked = false);
+    document.querySelector("#bulk-action").value = "";
+    updateBulkActionValue();
+  }
+  updateBulkSelection();
+}
+
+function toggleBulkSelectAll(checked) {
+  visibleBulkCheckboxes().forEach((checkbox) => checkbox.checked = checked);
+  updateBulkSelection();
+}
+
+function updateBulkSelection() {
+  const counter = document.querySelector("#bulk-selected-count");
+  if (!counter) {
+    return;
+  }
+
+  const checkboxes = visibleBulkCheckboxes();
+  const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+  const selectAll = document.querySelector("#bulk-select-all");
+
+  counter.textContent = "(" + translate("bulk_selected_count")
+    .replace("{count}", selected)
+    .replace("{total}", checkboxes.length) + ")";
+  selectAll.checked = checkboxes.length > 0 && selected === checkboxes.length;
+  selectAll.indeterminate = selected > 0 && selected < checkboxes.length;
+  updateBulkApplyState();
+}
+
+// Apply stays disabled until there is something to apply: at least one
+// subscription selected and an action chosen.
+function updateBulkApplyState() {
+  const apply = document.querySelector("#bulk-apply");
+  if (!apply) {
+    return;
+  }
+
+  const selected = visibleBulkCheckboxes().some((checkbox) => checkbox.checked);
+  const action = document.querySelector("#bulk-action").value;
+  apply.disabled = !selected || action === "";
+}
+
+function updateBulkActionValue() {
+  const action = document.querySelector("#bulk-action").value;
+  document.querySelector("#bulk-notify-days").hidden = action !== "set_notify_days";
+  document.querySelector("#bulk-category").hidden = action !== "set_category";
+  document.querySelector("#bulk-payment-method").hidden = action !== "set_payment_method";
+  updateBulkApplyState();
+}
+
+function applyBulkAction() {
+  const ids = visibleBulkCheckboxes()
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => parseInt(checkbox.value));
+  const action = document.querySelector("#bulk-action").value;
+
+  if (ids.length === 0) {
+    showErrorMessage(translate("no_subscriptions_selected"));
+    return;
+  }
+  if (action === "") {
+    showErrorMessage(translate("select_action"));
+    return;
+  }
+  if (action === "delete" && !confirm(translate("confirm_bulk_delete").replace("{count}", ids.length))) {
+    return;
+  }
+
+  const values = {
+    set_notify_days: "#bulk-notify-days",
+    set_category: "#bulk-category",
+    set_payment_method: "#bulk-payment-method",
+  };
+  const value = values[action] ? parseInt(document.querySelector(values[action]).value) : null;
+
+  fetch("endpoints/subscriptions/bulkedit.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": window.csrfToken,
+    },
+    body: JSON.stringify({ ids: ids, action: action, value: value }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(translate("network_response_error"));
+      }
+      return response.json();
+    })
+    .then((data) => {
+      if (data.success) {
+        showSuccessMessage(translate("bulk_action_success").replace("{count}", data.count));
+        toggleBulkMode();
+        fetchSubscriptions(null, null, "bulk");
+      } else {
+        showErrorMessage(data.message || translate("error_bulk_action"));
+      }
+    })
+    .catch((error) => {
+      showErrorMessage(error.message || translate("error_bulk_action"));
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const subscriptions = document.querySelector("#subscriptions");
+  if (!subscriptions) {
+    return;
+  }
+
+  // In bulk mode a click anywhere on a subscription selects it instead of
+  // opening it. Capture phase, so it runs before the subscription's onClick.
+  subscriptions.addEventListener("click", function (event) {
+    if (!subscriptions.classList.contains("bulk-mode") || event.target.closest(".bulk-select")) {
+      return;
+    }
+
+    const container = event.target.closest(".subscription-container");
+    if (!container) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const checkbox = container.querySelector(".bulk-select-checkbox");
+    checkbox.checked = !checkbox.checked;
+    updateBulkSelection();
+  }, true);
 });

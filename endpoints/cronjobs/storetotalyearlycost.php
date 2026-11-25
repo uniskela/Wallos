@@ -1,6 +1,7 @@
 <?php
-
+require_once 'validate.php';
 require_once __DIR__ . '/../../includes/connect_endpoint_crontabs.php';
+require_once __DIR__ . '/../../includes/currency_rates.php';
 
 require 'settimezone.php';
 
@@ -14,7 +15,9 @@ $currentDateString = $currentDate->format('Y-m-d');
 
 function getPricePerMonth($cycle, $frequency, $price)
 {
+    $frequency = max(1, (int)$frequency);
   switch ($cycle) {
+    case 5: return 0;
     case 1:
       $numberOfPaymentsPerMonth = (30 / $frequency);
       return $price * $numberOfPaymentsPerMonth;
@@ -32,19 +35,7 @@ function getPricePerMonth($cycle, $frequency, $price)
 
 function getPriceConverted($price, $currency, $database, $userId)
 {
-  $query = "SELECT rate FROM currencies WHERE id = :currency AND user_id = :userId";
-  $stmt = $database->prepare($query);
-  $stmt->bindParam(':currency', $currency, SQLITE3_INTEGER);
-  $stmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
-  $result = $stmt->execute();
-
-  $exchangeRate = $result->fetchArray(SQLITE3_ASSOC);
-  if ($exchangeRate === false) {
-    return $price;
-  } else {
-    $fromRate = $exchangeRate['rate'];
-    return $price / $fromRate;
-  }
+  return wallos_convert_price($price, $currency, $database, $userId);
 }
 
 // Get all users
@@ -54,6 +45,7 @@ $stmt = $db->prepare($query);
 $result = $stmt->execute();
 
 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    try {
     $userId = $row['id'];
     $userCurrencyId = $row['main_currency'];
     $totalYearlyCost = 0;
@@ -81,6 +73,10 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     } else {
         echo "Error inserting total yearly cost for user " . $userId . "<br />\n";
     }
+    } catch (Throwable $e) {
+        error_log('Skipping yearly cost for user ' . $row['id'] . ': ' . $e->getMessage());
+    }
+
 }
 
 

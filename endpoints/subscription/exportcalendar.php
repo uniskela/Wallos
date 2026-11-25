@@ -2,6 +2,9 @@
 require_once '../../includes/connect_endpoint.php';
 require_once '../../includes/validate_endpoint.php';
 require_once '../../includes/getdbkeys.php';
+require_once '../../includes/subscription_payers.php';
+require_once '../../includes/subscription_categories.php';
+require_once '../../includes/ical_helper.php';
 
 $postData = file_get_contents("php://input");
 $data = json_decode($postData, true);
@@ -23,8 +26,8 @@ if ($result === false) {
 $subscription = $result->fetchArray(SQLITE3_ASSOC); // Fetch the subscription details as an associative array
 
 if ($subscription) {
-    $subscription['payer_user'] = $members[$subscription['payer_user_id']]['name'];
-    $subscription['category'] = $categories[$subscription['category_id']]['name'];
+    $subscription['payer_user'] = payerNamesLabel(getPayersBySubscription($db, [$subscription])[$subscription['id']] ?? [], array_map(fn($m) => $m['name'] ?? '', $members));
+    $subscription['category'] = payerNamesLabel(getCategoriesBySubscription($db, [$subscription])[$subscription['id']] ?? [], array_map(fn($c) => $c['name'] ?? '', $categories));
     $subscription['payment_method'] = $payment_methods[$subscription['payment_method_id']]['name'];
     $subscription['currency'] = $currencies[$subscription['currency_id']]['symbol'];
     $subscription['trigger'] = $subscription['notify_days_before'] ? $subscription['notify_days_before'] : 1;
@@ -32,14 +35,24 @@ if ($subscription) {
 
     // Create ICS from subscription information
     $uid = 'wallos-subscription-' . $subscription['id'] . '@wallos';
-    $summary = html_entity_decode($subscription['name'], ENT_QUOTES, 'UTF-8');
-    $description = "Price: {$subscription['currency']}{$subscription['price']}\nCategory: {$subscription['category']}\nPayment Method: {$subscription['payment_method']}\nPayer: {$subscription['payer_user']}\n\nNotes: {$subscription['notes']}";
+    $summary = icalEscape(html_entity_decode($subscription['name'], ENT_QUOTES, 'UTF-8'));
+    $notes = icalEscape($subscription['notes']);
+    $category = icalEscape($subscription['category']);
+    $paymentMethod = icalEscape($subscription['payment_method']);
+    $payer = icalEscape($subscription['payer_user']);
+    $description = "Price: {$subscription['currency']}{$subscription['price']}\\nCategory: {$category}\\nPayment Method: {$paymentMethod}\\nPayer: {$payer}\\n\\nNotes: {$notes}";
 
     $dtstamp = gmdate('Ymd\THis\Z');
     $dtstart = (new DateTime($subscription['next_payment']))->format('Ymd');
     $dtend = (new DateTime($subscription['next_payment']))->format('Ymd');
-    $location = isset($subscription['url']) ? $subscription['url'] : '';
+    $location = icalEscape(isset($subscription['url']) ? $subscription['url'] : '');
     $alarm_trigger = '-P' . $subscription['trigger'] . 'D';
+
+    // Notes can now be multi-paragraph Markdown, so these lines (especially
+    // DESCRIPTION) can genuinely exceed the RFC 5545 75-octet limit.
+    $summaryLine = icalFold('SUMMARY:' . $summary);
+    $descriptionLine = icalFold('DESCRIPTION:' . $description);
+    $locationLine = icalFold('LOCATION:' . $location);
 
     $icsContent = <<<ICS
         BEGIN:VCALENDAR
@@ -50,11 +63,11 @@ if ($subscription) {
         BEGIN:VEVENT
         UID:$uid
         DTSTAMP:$dtstamp
-        SUMMARY:$summary
-        DESCRIPTION:$description
+        $summaryLine
+        $descriptionLine
         DTSTART;VALUE=DATE:$dtstart
         DTEND;VALUE=DATE:$dtend
-        LOCATION:$location
+        $locationLine
         STATUS:CONFIRMED
         TRANSP:OPAQUE
         BEGIN:VALARM

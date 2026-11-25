@@ -16,6 +16,13 @@ chown -R www-data:www-data /var/www/html
 chown -R www-data:www-data /tmp
 chmod -R 770 /tmp
 
+# nginx is configured dual-stack ([::]:80 ipv6only=off). If the kernel has IPv6
+# disabled, that socket cannot be created and nginx exits, so listen on IPv4 only.
+if [ ! -e /proc/net/if_inet6 ]; then
+  echo "IPv6 not available, configuring nginx to listen on IPv4 only"
+  sed -i 's/listen\( *\)\[::\]:80 ipv6only=off;/listen\180;/' /etc/nginx/nginx.conf /etc/nginx/http.d/default.conf
+fi
+
 # PIDs we’ll track
 PHP_FPM_PID=
 NGINX_PID=
@@ -42,6 +49,22 @@ shutdown_once() {
 # Handle all common stop signals
 trap 'shutdown_once' SIGTERM SIGINT SIGQUIT
 
+# Create / migrate the database BEFORE nginx accepts traffic.
+# Otherwise a concurrent request can open SQLite with default flags and
+# create an empty wallos.db, so createdatabase.php skips the full schema
+# and migrations fail (e.g. "no such table: user").
+mkdir -p /var/www/html/db /var/www/html/images/uploads/logos/avatars
+chmod -R 755 /var/www/html/db/ /var/www/html/images/uploads/logos
+chown -R www-data:www-data /var/www/html/db/ /var/www/html/images/uploads/logos
+
+echo "Initializing database..."
+# Don't let a failure here abort startup (set -e): keep the web UI reachable.
+/usr/local/bin/php /var/www/html/endpoints/cronjobs/createdatabase.php || echo "WARNING: createdatabase.php failed"
+/usr/local/bin/php /var/www/html/endpoints/db/migrate.php || echo "WARNING: migrate.php failed"
+
+chmod -R 755 /var/www/html/db/
+chown -R www-data:www-data /var/www/html/db/
+
 # Start both PHP-FPM and Nginx
 echo "Launching php-fpm"
 php-fpm -F &
@@ -57,36 +80,17 @@ NGINX_PID=$!
 
 touch ~/startup.txt
 
-# Wait one second before running scripts
-sleep 1
-
-# Create database if it does not exist
-/usr/local/bin/php /var/www/html/endpoints/cronjobs/createdatabase.php
-
-# Perform any database migrations
-/usr/local/bin/php /var/www/html/endpoints/db/migrate.php
-
-# Change permissions on the database directory
-chmod -R 755 /var/www/html/db/
-chown -R www-data:www-data /var/www/html/db/
-
-mkdir -p /var/www/html/images/uploads/logos/avatars
-
-# Change permissions on the logos directory
-chmod -R 755 /var/www/html/images/uploads/logos
-chown -R www-data:www-data /var/www/html/images/uploads/logos
-
 # Remove crontab for the user
 crontab -d -u root
 
 # Run updatenextpayment.php and wait for it to finish
-/usr/local/bin/php /var/www/html/endpoints/cronjobs/updatenextpayment.php
+timeout 300 /usr/local/bin/php /var/www/html/endpoints/cronjobs/updatenextpayment.php || echo "Warning: updatenextpayment exited with status $?" >&2
 
 # Run updateexchange.php
-/usr/local/bin/php /var/www/html/endpoints/cronjobs/updateexchange.php
+timeout 300 /usr/local/bin/php /var/www/html/endpoints/cronjobs/updateexchange.php || echo "Warning: updateexchange exited with status $?" >&2
 
 # Run checkforupdates.php
-/usr/local/bin/php /var/www/html/endpoints/cronjobs/checkforupdates.php
+timeout 300 /usr/local/bin/php /var/www/html/endpoints/cronjobs/checkforupdates.php || echo "Warning: checkforupdates exited with status $?" >&2
 
 # Essentially wait until all child processes exit
 wait

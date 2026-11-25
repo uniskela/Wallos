@@ -102,28 +102,33 @@ function backupDB() {
       "X-CSRF-Token": window.csrfToken,
     },
   })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        const link = document.createElement("a");
-        const filename = data.file;
-        link.href = ".tmp/" + filename;
-
-        const date = new Date();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const hours = String(date.getHours()).padStart(2, "0");
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        const timestamp = `${year}${month}${day}-${hours}${minutes}`;
-        link.download = `Wallos-Backup-${timestamp}.zip`;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
+    .then(async response => {
+      const contentType = response.headers.get("content-type") || "";
+      // Success streams the zip; any failure returns a JSON error body.
+      if (!response.ok || !contentType.includes("application/zip")) {
+        const data = await response.json().catch(() => ({}));
         showErrorMessage(data.message || translate("backup_failed"));
+        return;
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const timestamp = `${year}${month}${day}-${hours}${minutes}`;
+      link.download = `Wallos-Backup-${timestamp}.zip`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     })
     .catch(error => {
       console.error(error);
@@ -234,9 +239,11 @@ function saveSecuritySettingsButton() {
   button.disabled = true;
 
   const allowlist = document.getElementById('local_webhook_notifications_allowlist').value;
+  const allowStandardUsers = document.getElementById('allow_standard_users_local_webhooks').checked;
 
   const data = {
-    local_webhook_notifications_allowlist: allowlist
+    local_webhook_notifications_allowlist: allowlist,
+    allow_standard_users_local_webhooks: allowStandardUsers
   };
 
   fetch('endpoints/admin/savesecuritysettings.php', {
@@ -500,4 +507,138 @@ function saveOidcSettingsButton() {
       showErrorMessage('Error:', error);
       button.disabled = false;
     });
+}
+
+function saveInstanceTelegramButton() {
+  const button = document.getElementById("saveInstanceTelegramButton");
+  button.disabled = true;
+
+  const data = {
+    telegrambottoken: document.getElementById("telegrambottoken").value,
+  };
+
+  fetch('endpoints/admin/saveinstancetelegram.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify(data),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+      button.disabled = false;
+    })
+    .catch(error => {
+      showErrorMessage(error);
+      button.disabled = false;
+    });
+}
+
+function saveInstanceNtfyButton() {
+  const button = document.getElementById("saveInstanceNtfyButton");
+  button.disabled = true;
+
+  const data = {
+    ntfyserver: document.getElementById("ntfyserver").value,
+    ntfyheaders: document.getElementById("ntfyheaders").value,
+  };
+
+  fetch('endpoints/admin/saveinstancentfy.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify(data),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+      button.disabled = false;
+    })
+    .catch(error => {
+      showErrorMessage(error);
+      button.disabled = false;
+    });
+}
+
+function saveInstanceGotifyButton() {
+  const button = document.getElementById("saveInstanceGotifyButton");
+  button.disabled = true;
+
+  fetch('endpoints/admin/saveinstancegotify.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify({ gotifyserver: document.getElementById("gotifyserver").value }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+      button.disabled = false;
+    })
+    .catch(error => {
+      showErrorMessage(error);
+      button.disabled = false;
+    });
+}
+
+function saveInstancePushoverButton() {
+  const button = document.getElementById("saveInstancePushoverButton");
+  button.disabled = true;
+
+  fetch('endpoints/admin/saveinstancepushover.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.csrfToken,
+    },
+    body: JSON.stringify({ pushovertoken: document.getElementById("pushovertoken").value }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSuccessMessage(data.message);
+      } else {
+        showErrorMessage(data.message);
+      }
+      button.disabled = false;
+    })
+    .catch(error => {
+      showErrorMessage(error);
+      button.disabled = false;
+    });
+}
+
+// The instance notification settings share one box with a section per channel,
+// the way the notifications on the settings page do: one open at a time.
+function openInstanceNotificationSettings(type) {
+  const sections = document.querySelectorAll('.account-notification-section-settings[data-type^="instance-"]');
+  const target = document.querySelector(`.account-notification-section-settings[data-type="instance-${type}"]`);
+
+  sections.forEach(function (section) {
+    if (section !== target) {
+      section.classList.remove('is-open');
+    }
+  });
+
+  if (target) {
+    target.classList.toggle('is-open');
+  }
 }
